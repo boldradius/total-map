@@ -19,15 +19,13 @@ import id._
 import id.Id._
 import id.Insert._
 
-sealed trait Relation_ {
+sealed trait Relation_
+case class Relation[A](total: Total[A, Total[A, Boolean]], id: Id[A]) extends Relation_ {
   /** Adds a new element in the relation, in relation with itself only.*/
-  def addElement : Relation_ = this match {
-    case Relation(m, a) => insertId(a) match {
-      case InsertId(ab, b) => Relation(
-          m.map(_.insert(ab, false))
-            .insert(ab, Total(a, false).insert(ab, true)), 
-          b)
+  def addElement = insertId(id) match {
+      case InsertId(ab, idB) => Relation(
+          total.map(_.insert(ab, false))
+            .insert(ab, Total(id, false).insert(ab, true)), 
+          idB)
     }
-  }
 }
-case class Relation[A](totalMap: Total[A, Total[A, Boolean]], id: Id[A]) extends Relation_

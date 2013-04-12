@@ -20,11 +20,11 @@ import id.Id._
 import id.Insert._
 
 sealed trait Graph_ {
+  def addNode : Graph_
+}
+case class Graph[A](id: Id[A], edges: List[(A, A)]) extends Graph_ {
   /** Adds a new node with an edge to itself. */ 
-  def addNode = this match {
-    case Graph(a, edges) => insertId(a) match {
-      case InsertId(ab, b) => Graph(b, (ab.newKey, ab.newKey) :: edges)
-    }
+  def addNode = insertId(id) match {
+    case InsertId(ab, b) => Graph(b, (ab.newKey, ab.newKey) :: edges)
   }
 }
-case class Graph[A](id: Id[A], edges: List[(A, A)]) extends Graph_

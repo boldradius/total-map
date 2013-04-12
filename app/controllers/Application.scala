@@ -24,7 +24,7 @@ import id.Id._
 object Application extends Controller {
   var a : Graph_ = Graph[Nothing](nothingId, Nil)
   def index = Action {
-    (1 to 1000).foreach(_ => a = a.addNode)
+    a = a.addNode 
     
     Ok(views.html.index(
         a match {case Graph(id, edges) => edges.size.toString}))
