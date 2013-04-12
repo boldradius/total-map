@@ -20,7 +20,7 @@ import id.Id._
 import id.Insert._
 
 sealed trait Users_ {
-  /** Adds a new element in the relation, in relation with itself only.*/
+  /** Adds a new user with no friends.*/
   def newUser(name: String) : Users_ = this match {
     case Users(total, a) => insertId(a) match {
       case InsertId(ab, b) => Users(total.insert(ab, User(name, Nil)), b)
