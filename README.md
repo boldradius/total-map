@@ -3,7 +3,7 @@ typeSafeIds
 
 Library providing type-safe identifiers to enforce referential integrity.
 The types themselves grow or shrink appropriately during the execution the application, 
-forcing data structure indexed on these identifier types to be updated.
+forcing data structures indexed on these identifier types to be updated.
 
 The type class `Id[A]` admits types `A` that are meant to be used as identifiers. 
 These are extensible disjunctions of Unit (trees of `Either`/`Unit`/`Nothing`). 
@@ -27,7 +27,7 @@ accompanying map-like data structure called `Total[K, V]`. Now the solution woul
 <pre><code>
 `Total[A, List[A]]`
 </code></pre>where `A` is in type class `Id`,
-'Total' is a total map, so every key in the key type has a corresponding value in the map. 
+`Total` is a total map, so every key in the key type has a corresponding value in the map. 
 When we add alternatives to a type in `Id`, we obtain a way to update any `Total`
 collections that have that type as the key.
 
