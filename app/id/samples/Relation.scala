@@ -16,16 +16,15 @@
 package id.samples
 
 import id._
-import id.Id._
-import id.Insert._
 
 sealed trait Relation_
 case class Relation[A](total: Total[A, Total[A, Boolean]], id: Id[A]) extends Relation_ {
   /** Adds a new element in the relation, in relation with itself only.*/
-  def addElement = insertId(id) match {
-      case InsertId(ab, idB) => Relation(
-          total.map(_.insert(ab, false))
-            .insert(ab, Total(id, false).insert(ab, true)), 
-          idB)
-    }
+  def addElement = {
+    val i = id.insert
+    Relation(
+        total.map(_.insert(i.f, false))
+          .insert(i.f, Total.contant(false)(id.key).insert(i.f, true)),
+        i.id)
+  }
 }

@@ -15,30 +15,83 @@
 */
 package id
 
-/**
- * Id is a closed typeclass for trees of Either, Unit and Nothing types. We will use types in the
- * Id typeclass as identifiers. 
- */
-sealed trait Id[A]
-case class IdNothing() extends Id[Nothing]
-case class IdUnit() extends Id[Unit]
-case class IdEither[B, C](b: Id[B], c: Id[C]) extends Id[Either[B, C]]
 
-object Id {
-  implicit val nothingId : Id[Nothing] = IdNothing()
-  implicit val unitId : Id[Unit] = IdUnit()
-  implicit def eitherId[B : Id, C: Id] : Id[Either[B, C]] = IdEither(implicitly[Id[B]], implicitly[Id[C]])
+sealed trait Id[A] {
+  val minDepth : Int
+  def key : Key[A]
+  def insert = combine[Unit]
+  trait Super[N] {
+    type Type >: A
+    def values : N => Type
+    val f: Fun[Type, Either[A, N]]
+    val id: Id[Type]
+  }
+  def combine[N : Key]: Super[N]
+}
+case object NothingId extends Id[Nothing] {
+  val minDepth = 0
+  def key = implicitly
+  def combine[N : Key]: Super[N] = new Super[N] {
+    type Type = Either[N, Either[Nothing, Nothing]]
+    def values: N => Type = Left(_)
+    lazy val f : Fun[Type, Either[Nothing, N]] = TwoFun(RightFun(), TwoFun[Nothing, Nothing, Either[Nothing, N]](LeftFun() , LeftFun()))
+    val id : Id[Type] = IdNode[N, Nothing, Nothing](implicitly[Key[N]], NothingId, NothingId)
+  }
+}
+case class IdNode[A, B, C](a : Key[A], b: Id[B], c: Id[C]) extends Id[Either[A, Either[B, C]]] {
+  val minDepth = (a : Key[_]) match {
+    case NoKey => 0
+    case _ => Math.min(b.minDepth, c.minDepth) + 1
+  }
+  def key = EitherKey(a, EitherKey(b.key, c.key))
+  def combine[N : Key]: Super[N] = IdNode.combine(this)
 }
 
-object IdOps {
-  /** An ordering for any type in the Id typeclass. This makes it possible to use Map. */
-  def <[A : Id](a1: A, a2: A) : Boolean =
-    implicitly[Id[A]] match {
-      case IdNothing() => false
-      case IdUnit() => false
-      case IdEither(b, c) => 
-        a1.fold(e1l => a2.fold(e2l => <(e1l, e2l)(b), _ => true), 
-            e1r => a2.fold(_ => false, e2r => <(e1r, e2r)(c)))
+object IdNode {
+  def combine[A, B, C, N : Key](n: IdNode[A, B, C]) : n.Super[N] = {
+    n.a match {
+      case NoKey => combineNothing[B, C, N](n)
+      case _ => {
+        def up[X](g : Fun[X, Either[Either[B, C], N]]) : Fun[Either[A, X], Either[Either[A, Either[B, C]], N]] =
+          TwoFun(
+            LeftFun[A]() thenFun LeftFun(),
+            g thenFun TwoFun(RightFun() thenFun LeftFun(), RightFun()))
+        if (n.b.minDepth <= n.c.minDepth) {
+          val s = n.b.combine
+          new n.Super[N] {
+            type Type = Either[A, Either[s.Type, C]]
+            def values = n => Right(Left(s.values(n)))
+            lazy val f = up(f2) // TODO evaluate performance
+            def f2 : Fun[Either[s.Type, C], Either[Either[B, C], N]] = TwoFun(
+              s.f thenFun TwoFun(
+                LeftFun[B]() thenFun LeftFun(),
+                RightFun[N]()),
+              RightFun[C]() thenFun LeftFun())
+            val id = n.copy(b = s.id)
+          }
+        }
+        else {
+          val s = n.c.combine
+          new n.Super[N] {
+            type Type = Either[A, Either[B, s.Type]]
+            def values = n => Right(Right(s.values(n)))
+            lazy val f = up(f2)
+            def f2 : Fun[Either[B, s.Type], Either[Either[B, C], N]] = TwoFun(
+              LeftFun[B]() thenFun LeftFun(),
+              s.f thenFun TwoFun(
+                  RightFun[C]() thenFun LeftFun(),
+                  RightFun[N]()))
+            val id = n.copy(c = s.id)
+          }
+        }
+      }
     }
+  }
+  def combineNothing[B, C, N : Key](n: IdNode[Nothing, B, C]) : n.Super[N] = new n.Super[N] {
+    type Type = Either[N, Either[B, C]]
+    def values: N => Type = Left(_)
+    val f : Fun[Type, Either[Either[Nothing, Either[B, C]], N]] =
+      TwoFun(RightFun(), CompFun(LeftFun[Either[Nothing, Either[B, C]]](), RightFun[Either[B, C]]()))
+    val id : Id[Type] = n.copy(a = implicitly[Key[N]])
+  }
 }
-

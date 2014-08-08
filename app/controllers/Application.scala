@@ -19,14 +19,14 @@ import play.api._
 import play.api.mvc._
 import id._
 import id.samples._
-import id.Id._
 
 object Application extends Controller {
-  var a : Graph_ = Graph[Nothing](nothingId, Nil)
+  var a : Graph_ = Graph[Nothing](NothingId, Nil)
   def index = Action {
-    a = a.addNode 
+    (1 to 100000).foreach(_ => a = a.addNode) // TODO: Investigate performance/memory-usage, has trouble around 1M to 2M,
     
     Ok(views.html.index(
         a match {case Graph(id, edges) => edges.size.toString}))
   }
+
 }

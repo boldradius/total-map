@@ -16,15 +16,14 @@
 package id.samples
 
 import id._
-import id.Id._
-import id.Insert._
 
 sealed trait Graph_ {
   def addNode : Graph_
 }
 case class Graph[A](id: Id[A], edges: List[(A, A)]) extends Graph_ {
-  /** Adds a new node with an edge to itself. */ 
-  def addNode = insertId(id) match {
-    case InsertId(ab, b) => Graph(b, (ab.newKey, ab.newKey) :: edges)
+  /** Adds a new node with an edge to itself. */
+  def addNode = {
+    val i = id.insert
+    Graph[i.Type](i.id, (i.values(), i.values()) :: edges)
   }
 }

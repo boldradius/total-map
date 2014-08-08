@@ -16,14 +16,13 @@
 package id.samples
 
 import id._
-import id.Id._
-import id.Insert._
 
 sealed trait Users_
 case class Users[A](total: Total[A, User[A]], id: Id[A]) extends Users_ {
   /** Adds a new user with no friends.*/
-  def newUser(name: String) = insertId(id) match {
-    case InsertId(ab, b) => Users(total.insert(ab, User(name, Nil)), b)
+  def newUser(name: String) = {
+    val i = id.insert
+    Users(total.insert(i.f, User(name, Nil)), i.id)
   }
 }
 

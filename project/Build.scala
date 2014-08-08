@@ -11,7 +11,7 @@ object ApplicationBuild extends Build {
     // Add your project dependencies here,
     jdbc,
     anorm,
-    "org.scalaz" % "scalaz-core_2.10" % "7.0.0-M8"
+    "org.scalaz" % "scalaz-core_2.10" % "7.0.0"
     
   )
 
