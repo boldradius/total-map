@@ -22,9 +22,11 @@ import id.samples._
 
 object Application extends Controller {
   var a : Graph_ = Graph[Nothing](NothingId, Nil)
+  var b : Relation[_] = Relation[Nothing](TotalNothing, NothingId)
   def index = Action {
-    (1 to 100000).foreach(_ => a = a.addNode) // TODO: Investigate performance/memory-usage, has trouble around 1M to 2M,
-    
+    (1 to 1000).foreach(_ => a = a.addNode) // TODO: Investigate performance/memory-usage, has trouble around 1M to 2M,
+    (1 to 1000).foreach { _ => b = b.addElement}
+
     Ok(views.html.index(
         a match {case Graph(id, edges) => edges.size.toString}))
   }

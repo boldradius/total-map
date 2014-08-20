@@ -23,8 +23,8 @@ case class Relation[A](total: Total[A, Total[A, Boolean]], id: Id[A]) extends Re
   def addElement = {
     val i = id.insert
     Relation(
-        total.map(_.insert(i.f, false))
-          .insert(i.f, Total.contant(false)(id.key).insert(i.f, true)),
+        total.map(_.insert(i.fun, false))
+          .insert(i.fun, Total.contant(false)(id.key).insert(i.fun, true)),
         i.id)
   }
 }

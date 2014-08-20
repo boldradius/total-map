@@ -21,8 +21,8 @@ sealed trait Users_
 case class Users[A](total: Total[A, User[A]], id: Id[A]) extends Users_ {
   /** Adds a new user with no friends.*/
   def newUser(name: String) = {
-    val i = id.insert
-    Users(total.insert(i.f, User(name, Nil)), i.id)
+    val extension = id.insert
+    Users(total.insert(extension.fun, User(name, Nil)), extension.id)
   }
 }
 
