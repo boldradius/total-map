@@ -13,22 +13,18 @@
    See the License for the specific language governing permissions and
    limitations under the License.
 */
-package controllers
 
-import play.api._
-import play.api.mvc._
-import id._
-import id.samples._
+import com.boldradius.total._
+import scala.language.existentials
 
-object Application extends Controller {
-  var a : Graph_ = Graph[Nothing](NothingId, Nil)
-  var b : Relation[_] = Relation[Nothing](TotalNothing, NothingId)
-  def index = Action {
-    (1 to 1000).foreach(_ => a = a.addNode) // TODO: Investigate performance/memory-usage, has trouble around 1M to 2M,
-    (1 to 1000).foreach { _ => b = b.addElement}
 
-    Ok(views.html.index(
-        a match {case Graph(id, edges) => edges.size.toString}))
+sealed trait Users_
+case class Users[A](total: Total[A, User[A]], id: Id[A]) extends Users_ {
+  /** Adds a new user with no friends.*/
+  def newUser(name: String) = {
+    val extension = id.insert
+    Users(total.insert(extension.fun, User(name, Nil)), extension.id)
   }
-
 }
+
+case class User[+A](name: String, friends: List[A])

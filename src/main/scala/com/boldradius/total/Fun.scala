@@ -1,4 +1,4 @@
-package id
+package com.boldradius.total
 
 /// Restricted functions that can be comapped on total maps efficiently
 sealed trait Fun[-A, +B] extends Function[A, B] {

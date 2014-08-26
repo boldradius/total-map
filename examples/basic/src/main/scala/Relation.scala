@@ -13,17 +13,17 @@
    See the License for the specific language governing permissions and
    limitations under the License.
 */
-package id.samples
 
-import id._
+import com.boldradius.total._
+import scala.language.existentials
 
-sealed trait Graph_ {
-  def addNode : Graph_
-}
-case class Graph[A](id: Id[A], edges: List[(A, A)]) extends Graph_ {
-  /** Adds a new node with an edge to itself. */
-  def addNode = {
+case class Relation[A](total: Total[A, Total[A, Boolean]], id: Id[A]) {
+  /** Adds a new element in the relation, in relation with itself only.*/
+  def addElement = {
     val i = id.insert
-    Graph[i.Type](i.id, (i.values(), i.values()) :: edges)
+    Relation(
+        total.map(_.insert(i.fun, false))
+          .insert(i.fun, Total.contant(false)(id.key).insert(i.fun, true)),
+        i.id)
   }
 }

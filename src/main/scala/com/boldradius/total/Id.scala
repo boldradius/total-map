@@ -13,7 +13,7 @@
    See the License for the specific language governing permissions and
    limitations under the License.
 */
-package id
+package com.boldradius.total
 
 
 sealed trait Id[A] {
@@ -24,9 +24,15 @@ sealed trait Id[A] {
 }
 trait Extension[A, N] {
   type Type >: A
-  def values : N => Type
+  def newValues(n : N) : Type
   val fun: Fun[Type, Either[A, N]]
   val id: Id[Type]
+}
+object Extension {
+  trait ExtensionUnitValue[T] {val newValue : T}
+  implicit def extensionUnit[A](v: Extension[A, Unit]) = new ExtensionUnitValue[v.Type]{
+    val newValue : v.Type = v.newValues(())
+  }
 }
 
 case object NothingId extends Id[Nothing] {
@@ -34,7 +40,7 @@ case object NothingId extends Id[Nothing] {
   def key = implicitly
   def extend[N : Key]: Extension[Nothing, N] = new Extension[Nothing, N] {
     type Type = Either[N, Either[Nothing, Nothing]]
-    def values: N => Type = Left(_)
+    def newValues(n: N) = Left(n)
     lazy val fun : Fun[Type, Either[Nothing, N]] = TwoFun(RightFun(), TwoFun[Nothing, Nothing, Either[Nothing, N]](LeftFun() , LeftFun()))
     val id : Id[Type] = IdNode[N, Nothing, Nothing](implicitly[Key[N]], NothingId, NothingId)
   }
@@ -61,7 +67,7 @@ object IdNode {
           val s = n.b.extend
           new Extension[Either[A, Either[B, C]], N] {
             type Type = Either[A, Either[s.Type, C]]
-            def values = n => Right(Left(s.values(n)))
+            def newValues(n : N) = Right(Left(s.newValues(n)))
             lazy val fun = up(f2) // TODO evaluate performance
             def f2 : Fun[Either[s.Type, C], Either[Either[B, C], N]] = TwoFun(
               s.fun thenFun TwoFun(
@@ -75,7 +81,7 @@ object IdNode {
           val s = n.c.extend
           new Extension[Either[A, Either[B, C]], N] {
             type Type = Either[A, Either[B, s.Type]]
-            def values = n => Right(Right(s.values(n)))
+            def newValues(n : N) = Right(Right(s.newValues(n)))
             lazy val fun = up(f2)
             def f2 : Fun[Either[B, s.Type], Either[Either[B, C], N]] = TwoFun(
               LeftFun[B]() thenFun LeftFun(),
@@ -90,7 +96,7 @@ object IdNode {
   }
   def combineNothing[B, C, N : Key](n: IdNode[Nothing, B, C]) : Extension[Either[Nothing, Either[B, C]], N] = new Extension[Either[Nothing, Either[B, C]], N] {
     type Type = Either[N, Either[B, C]]
-    def values: N => Type = Left(_)
+    def newValues(n : N) = Left(n)
     val fun : Fun[Type, Either[Either[Nothing, Either[B, C]], N]] =
       TwoFun(RightFun(), CompFun(LeftFun[Either[Nothing, Either[B, C]]](), RightFun[Either[B, C]]()))
     val id : Id[Type] = n.copy(a = implicitly[Key[N]])
