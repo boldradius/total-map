@@ -1,4 +1,4 @@
-typeSafeIds
+total-map
 ===========
 
 Library providing type-safe identifiers to enforce referential integrity.
