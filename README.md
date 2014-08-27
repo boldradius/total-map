@@ -14,7 +14,7 @@ such as 'post not found' or 'user not found'. The types themselves grow or shrin
 forcing data structures indexed on these identifier types to be updated. Using `Total` allows an application to shift the burden of proof towards
 the functions that update maps and away from functions that simply access it.
 
-# Example:
+## Example:
 
 Let's say you have an application that maintains a collection of users, 
 and would like each user to be able refer to other users. You could do 
@@ -30,10 +30,12 @@ If we want to prevent that, we can instead use the `Key` type class and the `Tot
 Now the solution would look like this:
 <pre><code>
 `Total[A, List[A]]`
-</code></pre>where `A` is in type class `Key`,
-Now every user id of type `A` has a corresponding list of user ids (of type `A`). 
-We may then add alternatives to a type in `Key`, and obtain as a result a way to insert into any `Total`
-instance that has that type as the key.
+</code></pre>where `A` is in type class `Key`.
+
+Now every user id of type `A` has a corresponding list of user ids (of type `A`).
+ 
+To insert a user in this structure, we generate a new user id type `B` that has one more potential value than `A`.  (see the code in the `example/basic` directory)
+
 
 This way we can have data structures that enforce referential integrity. 
 We can safely represent relations over dynamic sets.
