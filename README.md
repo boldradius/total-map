@@ -16,14 +16,14 @@ the functions that update maps and away from functions that simply access it.
 
 # Example:
 
-Let's say you have an application that maintains a collection of Users, 
-and would like each User to be able refer to other users. You could do 
+Let's say you have an application that maintains a collection of users, 
+and would like each user to be able refer to other users. You could do 
 <pre><code>
 case class UserId(v: Long)
 Map[UserId, List[UserId]]
 </code></pre>
-but then we have no compiler enforced guarantee that the `UserId`s in the `List` are defined in the `Map`. 
-So we could have `Map(UserId(1) -> List(UserId(3)), UserId(3) -> List(UserId(2)))`.
+but then we have no compiler enforced guarantee that the user ids in the list are defined in the map. 
+So we could have `Map(UserId(1) -> List(UserId(2)), UserId(3) -> List(UserId(1)))`.
 We can have dangling references within that data structure.
 
 If we want to prevent that, we can instead use the `Key` type class and the `Total` map.
@@ -32,8 +32,7 @@ Now the solution would look like this:
 `Total[A, List[A]]`
 </code></pre>where `A` is in type class `Key`,
 Now every user id of type `A` has a corresponding list of user ids (of type `A`). 
-To safely add alternatives to a type in `Key`, it should also be in the class `Id`.
-When we add such alternatives to a type in `Id`, we obtain a way to insert into any `Total`
+We may then add alternatives to a type in `Key`, and obtain as a result a way to insert into any `Total`
 instance that has that type as the key.
 
 This way we can have data structures that enforce referential integrity. 
@@ -50,5 +49,8 @@ The type class `Key[A]` admits types `A` that are meant to be used as identifier
 These are extensible disjunctions of Unit (trees of `Either`/`Unit`/`Nothing`). 
 An insertion function is provided that goes from a type in this class to one that is a 
 similar disjunction but has one more alternative.
+
+Note that some types in `Key` are not be extensible into super types The Unit type is such an example. This library also provides a
+more restrictive type-class `Id` that only contains types that can be extended into super types.
 --->
 
