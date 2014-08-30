@@ -33,6 +33,18 @@ case class RightFun[A]() extends Fun[A, Either[Nothing, A]] {
 object Fun {
   def eitherFun[A1, A2, B1, B2](f: Fun[A1, B1], g: Fun[A2, B2]): Fun[Either[A1, A2], Either[B1, B2]] =
     TwoFun(CompFun(LeftFun[B1](), f), CompFun(RightFun[B2](), g))
+  def leftMapFun[A, A1, B1](f: Fun[A1, B1]) : Fun[Either[A1, A], Either[B1, A]] =
+    TwoFun(CompFun(LeftFun[B1](), f), RightFun[A]())
+  def rightMapFun[A, A1, B1](f: Fun[A1, B1]) : Fun[Either[A, A1], Either[A, B1]] =
+    TwoFun(LeftFun[A](), CompFun(RightFun[B1](), f))
   def swapFun[A, B]: Fun[Either[A, B], Either[B, A]] =
     TwoFun(RightFun(), LeftFun())
+  def swapRights[A, B, C] : Fun[Either[Either[A, B], C], Either[Either[A, C], B]] =
+    TwoFun(TwoFun(LeftFun[A]() thenFun LeftFun(), RightFun[B]()), RightFun[C]() thenFun LeftFun())
+  def assoc[A, B, C] : Fun[Either[Either[A, B], C], Either[A, Either[B, C]]] =
+    TwoFun(TwoFun(LeftFun(), LeftFun[B]() thenFun RightFun()), RightFun[C]() thenFun RightFun())
+  def leftMerge[A, R, Z, B](f: Fun[Either[A, R], Z]) : Fun[Either[Either[A, B], R], Either[Z, B]] =
+    Fun.swapRights thenFun Fun.leftMapFun(f)
+  def rightMerge[B, R, Z, A](f: Fun[Either[B, R], Z]) : Fun[Either[Either[A, B], R], Either[A, Z]] =
+    Fun.assoc thenFun Fun.rightMapFun(f)
 }

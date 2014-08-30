@@ -26,4 +26,10 @@ case class Relation[A](total: Total[A, Total[A, Boolean]], id: Id[A]) {
           .insert(i.fun, Total.contant(false)(id.key).insert(i.fun, true)),
         i.id)
   }
+  /** Remove an element from the relation. Does nothing when empty. */
+  def removeSomeElement : Relation[_] = id.headOption.fold[Relation[_]](this)(a => {
+    val r = id.remove(a)
+    Relation(total.map(_.remove(r.fun))
+      .remove(r.fun), r.id)
+  })
 }

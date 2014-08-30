@@ -31,6 +31,9 @@ sealed trait Total[-K, +V] extends Function[K, V] {
    */
   final def comap[K2, V2 >: V](f: Fun[K2, K]) : Total[K2, V2] = f.thenTotal(this)
   final def insert[K2, V2 >: V](f : Fun[K2, Either[K, Unit]], v: V2) : Total[K2, V2] = TotalEither(this, TotalUnit(v)).comap(f)
+  final def remove[K2, V2 >: V](f : Fun[Either[K2, Unit], K]) : Total[K2, V2] = comap(f) match {
+    case TotalEither(t, _) => t
+  }
 }
 case object TotalNothing extends Total[Nothing, Nothing] {
   def apply(k : Nothing) = k
