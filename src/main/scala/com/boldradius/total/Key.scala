@@ -31,7 +31,7 @@ case class EitherKey[A, B](a: Key[A], b: Key[B]) extends Key[Either[A, B]] {
       type Type = Either[aContraction.Type, B]
       val removed: Either[A, B] = k
       val fun: Fun[Either[Type, Unit], Either[A, B]] = Fun.leftMerge(aContraction.fun)
-    }}, bv => {
+    } : KeyContraction[Either[A, B]]}, bv => {
       val bContraction = b.remove(bv)
       new KeyContraction[Either[A, B]] {
         def key: Key[Type] = EitherKey(a, bContraction.key)
@@ -40,7 +40,7 @@ case class EitherKey[A, B](a: Key[A], b: Key[B]) extends Key[Either[A, B]] {
         val removed: Either[A, B] = k
         val fun: Fun[Either[Type, Unit], Either[A, B]] = Fun.rightMerge(bContraction.fun)
 
-      }})
+      } : KeyContraction[Either[A, B]]})
   def toStream = a.toStream.map(Left(_)) ++ b.toStream.map(Right(_))
 }
 

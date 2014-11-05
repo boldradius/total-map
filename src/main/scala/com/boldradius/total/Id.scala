@@ -74,7 +74,7 @@ case class IdNode[A, B, C](a : Key[A], b: Id[B], c: Id[C]) extends Id[Either[A, 
         def contract(a1: Either[A, Either[B, C]]): Option[Type] = a1.fold(aContraction.contract(_).map(Left(_)), bc => Some(Right(bc)))
         def id: Id[Type] = copy(a = aContraction.key)
         val fun: Fun[Either[Type, Unit], Either[A, Either[B, C]]] = Fun.swapRights thenFun Fun.leftMapFun(aContraction.fun)
-      }
+      } : IdContraction[Either[A, Either[B, C]]]
      }, _.fold(bToRemove => {
         val bContraction : IdContraction[B] = b.remove(bToRemove)
         new IdContraction[Either[A, Either[B, C]]]{
@@ -84,7 +84,7 @@ case class IdNode[A, B, C](a : Key[A], b: Id[B], c: Id[C]) extends Id[Either[A, 
             a1.fold(av => Some(Left(av)), _.fold(bContraction.contract(_).map(bcontr => Right(Left(bcontr))), cv => Some(Right(Right(cv)))))
           def id: Id[Type] = copy(b = bContraction.id)
           val fun: Fun[Either[Type, Unit], Either[A, Either[B, C]]] = Fun.rightMerge(Fun.leftMerge(bContraction.fun))
-        }
+        } : IdContraction[Either[A, Either[B, C]]]
       }, cToRemove => {
         val cContraction : IdContraction[C] = c.remove(cToRemove)
         new IdContraction[Either[A, Either[B, C]]]{
@@ -94,7 +94,7 @@ case class IdNode[A, B, C](a : Key[A], b: Id[B], c: Id[C]) extends Id[Either[A, 
             a1.fold(av => Some(Left(av)), _.fold(bv => Some(Right(Left(bv))), cContraction.contract(_).map(ccontr => Right(Right(ccontr)))))
           def id: Id[Type] = copy(c = cContraction.id)
           val fun: Fun[Either[Type, Unit], Either[A, Either[B, C]]] = Fun.rightMerge(Fun.rightMerge(cContraction.fun))
-        }
+        } : IdContraction[Either[A, Either[B, C]]]
       }))
   def toStream = a.toStream.map(Left(_)) ++ (b.toStream.map(Left(_)) ++ c.toStream.map(Right(_))).map(Right(_))
 }
