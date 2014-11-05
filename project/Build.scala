@@ -6,7 +6,6 @@ import sbtrelease.ReleasePlugin._
 
 object ApplicationBuild extends Build {
   val main = Project("total-map", file(".")).settings(
-    version := "0.1.8",
     useGlobalVersion := false,
     organization := "com.boldradius",
     scalaVersion := "2.11.4",
