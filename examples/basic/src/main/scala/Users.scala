@@ -17,14 +17,21 @@
 import com.boldradius.total._
 import scala.language.existentials
 
+case class User[+A](name: String, friends: List[A])
 
-sealed trait Users_
-case class Users[A](total: Total[A, User[A]], id: Id[A]) extends Users_ {
+case class Users[A](total: Total[A, User[A]], id: Id[A]) {
   /** Adds a new user with no friends.*/
-  def newUser(name: String) = {
+  def addUser(user: User[A]) = {
     val extension = id.insert
-    Users(total.insert(extension.fun, User(name, Nil)), extension.id)
+    Users(total.insert(extension.fun, user), extension.id)
   }
 }
 
-case class User[+A](name: String, friends: List[A])
+object Users {
+  def renderUserProfile[A](user: User[A], users: Users[A]): String =
+    Seq(
+      user.name,
+      ("Friends: " :: user.friends.map(users.total(_).name))).mkString("\n")
+}
+
+
