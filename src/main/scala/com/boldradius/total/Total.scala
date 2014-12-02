@@ -16,14 +16,14 @@
 package com.boldradius.total
 
 sealed trait Total[+V] {
-  type Id <: Alt3[_, _, _]
+  type Id <: Id2[_, _, _]
   val size : Int
   def apply(k : Id) : V
   def map[V2](f: V => V2): Total[V2] {type Id = Total.this.Id}
   def update[V2 >: V](k: Id, f: V2 => V2): Total[V2] {type Id = Total.this.Id}
-  def insert[V2 >: V](value: V2): SingleExtension[V2] {val original : Total.this.type; val total: Total[V2] {type Id >: original.Id <: Alt3[_, _, _]}  }
-  def insertAll[V2 >: V](values: Seq[V2]): Extension[V2] {val original : Total.this.type; val total: Total[V2] {type Id >: original.Id <: Alt3[_, _, _]}} = {
-    type R = Extension[V2] {val original: Total.this.type; val total: Total[V2] {type Id >: original.Id <: Alt3[_, _, _]}}
+  def insert[V2 >: V](value: V2): SingleExtension[V2] {val original : Total.this.type; val total: Total[V2] {type Id >: original.Id <: Id2[_, _, _]}  }
+  def insertAll[V2 >: V](values: Seq[V2]): Extension[V2] {val original : Total.this.type; val total: Total[V2] {type Id >: original.Id <: Id2[_, _, _]}} = {
+    type R = Extension[V2] {val original: Total.this.type; val total: Total[V2] {type Id >: original.Id <: Id2[_, _, _]}}
     values.foldLeft[R](
       Extension[V2, this.type](this)(this)(Nil)) {
       (extension, value) =>
@@ -60,8 +60,8 @@ case object TotalNothing extends Total[Nothing] {
   def removeInner(key: Nothing) = key
   def toStream = Stream.empty
 }
-case class TotalWith[+V, K1 <: Alt3[_, _, _], K2 <: Alt3[_, _, _]](v: V, t1: Total[V] {type Id = K1}, t2: Total[V] {type Id = K2}) extends Total[V] {
-  type Id = Alt3[Unit, K1, K2]
+case class TotalWith[+V, K1 <: Id2[_, _, _], K2 <: Id2[_, _, _]](v: V, t1: Total[V] {type Id = K1}, t2: Total[V] {type Id = K2}) extends Total[V] {
+  type Id = Id2[Unit, K1, K2]
   val size = 1 + t1.size + t2.size
   def apply(k : Id) = k.fold(_ => v, t1(_), t2(_))
   def map[V2](f: V => V2) = TotalWith(f(v), t1.map(f), t2.map(f))
@@ -78,11 +78,11 @@ case class TotalWith[+V, K1 <: Alt3[_, _, _], K2 <: Alt3[_, _, _]](v: V, t1: Tot
   def insert[V2 >: V](value: V2) =
     if (t1.size <= t2.size) {
       val ext = t1.insert(value)
-      SingleExtension[V2, this.type](this)(TotalWith[V2, ext.total.Id, K2](v, ext.total, t2))(Alt3.in1(ext.newId))
+      SingleExtension[V2, this.type](this)(TotalWith[V2, ext.total.Id, K2](v, ext.total, t2))(Id2.in1(ext.newId))
     }
     else {
       val ext = t2.insert(value)
-      SingleExtension[V2, this.type](this)(TotalWith[V2, K1, ext.total.Id](v, t1, ext.total))(Alt3.in2(ext.newId))
+      SingleExtension[V2, this.type](this)(TotalWith[V2, K1, ext.total.Id](v, t1, ext.total))(Id2.in2(ext.newId))
     }
   def removeInner(removedKey: Id): (Total[V], V) =
     removedKey.fold[(Total[V], V)](_ =>
@@ -95,10 +95,10 @@ case class TotalWith[+V, K1 <: Alt3[_, _, _], K2 <: Alt3[_, _, _]](v: V, t1: Tot
         (TotalWith[V, t1.Id, t2a.Id](v, t1, t2a), removed)
       })
   def toStream : Stream[(Id, V)] = // TODO: revisit method name, the order is surprising. Improve algorithm
-    (Alt3.zero, v) #:: (t1.toStream.map{case(k, v) => (Alt3.in1(k), v)} : Stream[(Id, V)]).append(t2.toStream.map{case(k, v) => (Alt3.in2(k), v)})
+    (Id2.zero, v) #:: (t1.toStream.map{case(k, v) => (Id2.in1(k), v)} : Stream[(Id, V)]).append(t2.toStream.map{case(k, v) => (Id2.in2(k), v)})
 }
-case class TotalWithout[+V, K1 <: Alt3[_, _, _], K2 <: Alt3[_, _, _]](t1: Total[V] {type Id = K1}, t2: Total[V] {type Id = K2}) extends Total[V] {
-  type Id = Alt3[Nothing, K1, K2]
+case class TotalWithout[+V, K1 <: Id2[_, _, _], K2 <: Id2[_, _, _]](t1: Total[V] {type Id = K1}, t2: Total[V] {type Id = K2}) extends Total[V] {
+  type Id = Id2[Nothing, K1, K2]
   val size = t1.size + t2.size
   def apply(k : Id) = k.fold((n: Nothing) => n, t1(_), t2(_))
   def map[V2](f: V => V2) = {
@@ -119,8 +119,8 @@ case class TotalWithout[+V, K1 <: Alt3[_, _, _], K2 <: Alt3[_, _, _]](t1: Total[
   def insert[V2 >: V](value: V2) =
     new SingleExtension[V2] {
       val original : TotalWithout.this.type = TotalWithout.this
-      val total : Total[V2] {type Id = Alt3[Unit, t1.Id, t2.Id]} = TotalWith[V2, t1.Id, t2.Id](value, t1, t2)
-      val newId : total.Id = Alt3.zero
+      val total : Total[V2] {type Id = Id2[Unit, t1.Id, t2.Id]} = TotalWith[V2, t1.Id, t2.Id](value, t1, t2)
+      val newId : total.Id = Id2.zero
     }
   def removeInner(removedKey: Id): (Total[V], V) =
     removedKey.fold[(Total[V], V)]((n: Nothing) => n,
@@ -132,7 +132,7 @@ case class TotalWithout[+V, K1 <: Alt3[_, _, _], K2 <: Alt3[_, _, _]](t1: Total[
         (TotalWithout[V, t1.Id, t2a.Id](t1, t2a), v)
       })
   def toStream : Stream[(Id, V)] = // TODO: revisit method name, the order is surprising. Improve algorithm
-    (t1.toStream.map{case(k, v) => (Alt3.in1(k), v)} : Stream[(Id, V)]).append(t2.toStream.map{case(k, v) => (Alt3.in2(k), v)})
+    (t1.toStream.map{case(k, v) => (Id2.in1(k), v)} : Stream[(Id, V)]).append(t2.toStream.map{case(k, v) => (Id2.in2(k), v)})
 }
 
 object Total {
@@ -141,7 +141,7 @@ object Total {
 
 trait Extension[+V] {
   val original : Total[V]
-  val total: Total[V] {type Id >: original.Id <: Alt3[_, _, _]}
+  val total: Total[V] {type Id >: original.Id <: Id2[_, _, _]}
   val newIds : Seq[total.Id]
   def mapKeys(f: Seq[total.Id] => Seq[total.Id]) : Extension[V] {val original : Extension.this.original.type} =
     Extension[V, original.type](original)(total)(f(newIds))
@@ -151,21 +151,21 @@ trait SingleExtension[+V] extends Extension[V] {
   val newId : total.Id
 }
 object Extension {
-  def apply[V, T <: Total[V]](original_ : T)(total_ : Total[V] {type Id >: original_.Id <: Alt3[_, _, _]})(keys_ : Seq[total_.Id]) = new Extension[V] {
+  def apply[V, T <: Total[V]](original_ : T)(total_ : Total[V] {type Id >: original_.Id <: Id2[_, _, _]})(keys_ : Seq[total_.Id]) = new Extension[V] {
     val original : original_.type = original_
     val total : total_.type = total_
     val newIds : Seq[total.Id] = keys_
   }
 }
 object SingleExtension {
-  def apply[V, T <: Total[V]](original_ : T)(total_ : Total[V] {type Id >: original_.Id <: Alt3[_, _, _]})(key_ : total_.Id) = new SingleExtension[V] {
+  def apply[V, T <: Total[V]](original_ : T)(total_ : Total[V] {type Id >: original_.Id <: Id2[_, _, _]})(key_ : total_.Id) = new SingleExtension[V] {
     val original : original_.type = original_
     val total : total_.type = total_
     val newId : total.Id = key_
   }
 }
 
-trait Contraction[K <: Alt3[_, _, _], +V] {
+trait Contraction[K <: Id2[_, _, _], +V] {
   val total: Total[V] {type Id <: K}
   val removedKey : K
   val removedValue : V
