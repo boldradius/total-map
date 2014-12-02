@@ -17,10 +17,11 @@
 import com.boldradius.total._
 import scala.language.existentials
 
-case class Relation[A](total: Total[A, Total[A, Boolean]], id: Id[A]) {
+case class Relation[A](total: Total[Total[Boolean] {type Key = A}] {type Key = A}, id: Total[Unit]) {
+  /*
   /** Adds a new element in the relation, in relation with itself only.*/
   def addElement = {
-    val i = id.insert
+    val i = id.insert(())
     Relation(
         total.map(_.insert(i.fun, false))
           .insert(i.fun, Total.contant(false)(id.key).insert(i.fun, true)),
@@ -32,4 +33,5 @@ case class Relation[A](total: Total[A, Total[A, Boolean]], id: Id[A]) {
     Relation(total.map(_.remove(r.fun))
       .remove(r.fun), r.id)
   })
+  */
 }

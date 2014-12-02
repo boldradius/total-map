@@ -19,12 +19,14 @@ import scala.language.existentials
 
 case class User[+A](name: String, friends: List[A])
 
-case class Users[A](total: Total[A, User[A]], id: Id[A]) {
+case class Users[A](total: Total[User[A]] {type Id = A}, id: Total[Unit]) {
+  /*
   /** Adds a new user with no friends.*/
   def addUser(user: User[A]) = {
     val extension = id.insert
     Users(total.insert(extension.fun, user), extension.id)
   }
+  */
 }
 
 object Users {

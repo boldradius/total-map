@@ -17,10 +17,10 @@
 import com.boldradius.total._
 import scala.language.existentials
 
-case class Graph[A](id: Id[A], edges: List[(A, A)]) {
+case class Graph[A](id: Total[Unit] {type Id = A}, edges: List[(A, A)]) {
   /** Adds a new node with an edge to itself. */
   def addNode = {
-    val i = id.insert
-    Graph(i.id, (i.newValue, i.newValue) :: edges)
+    val i = id.insert(())
+    Graph(i.total, (i.newId, i.newId) :: edges)
   }
 }

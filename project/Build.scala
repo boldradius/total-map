@@ -14,4 +14,10 @@ object ApplicationBuild extends Build {
     publishMavenStyle := true,
     bintray.Keys.bintrayOrganization in bintray.Keys.bintray := Some("boldradiussolutions")
   ).settings(bintraySettings ++ releaseSettings: _*)
+  val basic = Project("basic", file("examples/basic")).settings(
+    scalaVersion := "2.11.4",
+    //libraryDependencies += "com.boldradius" %% "total-map" % "0.1.10",
+    resolvers += Resolver.bintrayRepo("boldradiussolutions", "maven"),
+    bintray.Keys.bintrayOrganization in bintray.Keys.bintray := Some("boldradiussolutions")
+  ).dependsOn(main)
 }
