@@ -1,30 +1,26 @@
 import com.boldradius.total._
 
-// Consider changing to users and organisations
 sealed trait Simple {
-  val accounts : Total[Double]
-  val customers : List[accounts.Id]
+  val owners : Total[String]
+  val cars : List[owners.Id]
 
-  def newCustomer = {
-    val insert = accounts.insert(0.0)
-    Simple(insert.total)(insert.newId :: customers) : Simple
+  def newCarNewOwner(name: String) : Simple = {
+    val inserted = owners.insert(name)
+    Simple(inserted.total)(inserted.newId :: cars)
   }
 
-  def newCustomerExistingAccount(account: accounts.Id) =
-    Simple(accounts)(account :: customers)
-
-  def deleteAccount(accountId: accounts.Id) = {
-    val removal = accounts.remove(accountId)
-    Simple(removal.total)(customers.flatMap(removal.filter(_))) : Simple
+  def deleteOwner(ownerId: owners.Id) : Simple = {
+    val removal = owners.remove(ownerId)
+    Simple(removal.total)(cars.flatMap(removal.filter(_)))
   }
 }
 object Simple {
-  def apply(accounts_ : Total[Double])(customers_ : List[accounts_.Id]) = new Simple {
-    val accounts : accounts_.type = accounts_
-    val customers = customers_
+  def apply(owners_ : Total[String])(cars_ : List[owners_.Id]) = new Simple {
+    val owners : owners_.type = owners_
+    val cars = cars_
   }
 }
 
 // This simple syntax does work yet: SI-5712 dependent constructor types
-// sealed class Simple(val set : Total[_, Unit])(val elements : List[set.Key]) {}
+// sealed class Simple(val owners : Total[String])(val cars : List[owners.Id]) {}
 
