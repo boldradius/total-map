@@ -35,12 +35,12 @@ sealed trait Total[+V] {
     val k = removedKey
     new SingleContraction[Id, V] {
       type ContractionKey = Id
-      val total = removedInner._1.asInstanceOf[Total[V] {type Id <: ContractionKey}] // TODO: prove this properly
+      val total = removedInner._1
       val removedValue: V = removedInner._2
       val removedKey = k
     }
   }
-  private[total] def removeInner(removedKey: Id) : (Total[V], V) // TODO put back {type Id <: Total.this.Id} refinement
+  private[total] def removeInner(removedKey: Id) : (TotalSub[Id, V], V)
   def toStream : Stream[(Id, V)]
   // TODO: filter, filterOne
 
@@ -83,8 +83,8 @@ case class TotalWith[+V, K1 <: AnyId, K2 <: AnyId](v: V, t1: Total[V] {type Id =
       val ext = t2.insert(value)
       SingleExtension[Id, V2](TotalWith[V2, K1, ext.total.Id](v, t1, ext.total))(Id2.in2(ext.newId))
     }
-  def removeInner(removedKey: Id): (Total[V], V) =
-    removedKey.fold[(Total[V], V)](_ =>
+  def removeInner(removedKey: Id): (TotalSub[Id, V], V) =
+    removedKey.fold[(TotalSub[Id, V], V)](_ =>
       (TotalWithout[V, t1.Id, t2.Id](t1, t2), v),
       k1 => {
         val (t1a, removed) = t1.removeInner(k1)
@@ -120,8 +120,8 @@ case class TotalWithout[+V, K1 <: AnyId, K2 <: AnyId](t1: Total[V] {type Id = K1
       val total = TotalWith[V2, t1.Id, t2.Id](value, t1, t2)
       val newId : total.Id = Id2.zero
     }
-  def removeInner(removedKey: Id): (Total[V], V) =
-    removedKey.fold[(Total[V], V)]((n: Nothing) => n,
+  def removeInner(removedKey: Id): (TotalSub[Id, V], V) =
+    removedKey.fold[(TotalSub[Id, V], V)]((n: Nothing) => n,
       k1 => {
         val (t1a, v) = t1.removeInner(k1)
         (TotalWithout[V, t1a.Id, t2.Id](t1a, t2), v)
