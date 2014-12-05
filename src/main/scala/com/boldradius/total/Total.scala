@@ -16,7 +16,7 @@
 package com.boldradius.total
 
 sealed trait Total[+V] {
-  type Id <: Id2[_, _, _]
+  type Id <: AnyId
   val size : Int
   def apply(k : Id) : V
   def map[V2](f: V => V2): Total[V2] {type Id = Total.this.Id}
@@ -30,13 +30,13 @@ sealed trait Total[+V] {
         Extension[Id, V2](singleExtension.total)(singleExtension.newId +: extension.newIds): Extension[Id, V2]
     }.mapKeys(_.reverse)
   }
-  def remove(removedKey: Id): Contraction[Id, V] = {
-    val removed = removeInner(removedKey)
+  def remove(removedKey: Id): SingleContraction[Id, V] = {
+    val removedInner = removeInner(removedKey)
     val k = removedKey
-    new Contraction[Id, V] {
+    new SingleContraction[Id, V] {
       type ContractionKey = Id
-      val total = removed._1.asInstanceOf[Total[V] {type Id <: ContractionKey}] // TODO: prove this properly
-      val removedValue: V = removed._2
+      val total = removedInner._1.asInstanceOf[Total[V] {type Id <: ContractionKey}] // TODO: prove this properly
+      val removedValue: V = removedInner._2
       val removedKey = k
     }
   }
@@ -59,7 +59,7 @@ case object TotalNothing extends Total[Nothing] {
   def removeInner(key: Nothing) = key
   def toStream = Stream.empty
 }
-case class TotalWith[+V, K1 <: Id2[_, _, _], K2 <: Id2[_, _, _]](v: V, t1: Total[V] {type Id = K1}, t2: Total[V] {type Id = K2}) extends Total[V] {
+case class TotalWith[+V, K1 <: AnyId, K2 <: AnyId](v: V, t1: Total[V] {type Id = K1}, t2: Total[V] {type Id = K2}) extends Total[V] {
   type Id = Id2[Unit, K1, K2]
   val size = 1 + t1.size + t2.size
   def apply(k : Id) = k.fold(_ => v, t1(_), t2(_))
@@ -96,7 +96,7 @@ case class TotalWith[+V, K1 <: Id2[_, _, _], K2 <: Id2[_, _, _]](v: V, t1: Total
   def toStream : Stream[(Id, V)] = // TODO: revisit method name, the order is surprising. Improve algorithm
     (Id2.zero, v) #:: (t1.toStream.map{case(k, v) => (Id2.in1(k), v)} : Stream[(Id, V)]).append(t2.toStream.map{case(k, v) => (Id2.in2(k), v)})
 }
-case class TotalWithout[+V, K1 <: Id2[_, _, _], K2 <: Id2[_, _, _]](t1: Total[V] {type Id = K1}, t2: Total[V] {type Id = K2}) extends Total[V] {
+case class TotalWithout[+V, K1 <: AnyId, K2 <: AnyId](t1: Total[V] {type Id = K1}, t2: Total[V] {type Id = K2}) extends Total[V] {
   type Id = Id2[Nothing, K1, K2]
   val size = t1.size + t2.size
   def apply(k : Id) = k.fold((n: Nothing) => n, t1(_), t2(_))
@@ -137,34 +137,40 @@ object Total {
   val empty = TotalNothing
 }
 
-trait Extension[K <: Id2[_, _, _], +V] {
-  val total: Total[V] {type Id >: K <: Id2[_, _, _]}
+trait Extension[K <: AnyId, +V] {
+  val total: Total[V] {type Id >: K <: AnyId}
   val newIds : Seq[total.Id]
   def mapKeys(f: Seq[total.Id] => Seq[total.Id]) : Extension[K, V] =
     Extension[K, V](total)(f(newIds))
 }
-trait SingleExtension[K <: Id2[_, _, _], +V] extends Extension[K, V] {
+trait SingleExtension[K <: AnyId, +V] extends Extension[K, V] {
   final val newIds = List(newId)
   val newId : total.Id
 }
 object Extension {
-  def apply[K <: Id2[_, _, _], V](total_ : Total[V] {type Id >: K <: Id2[_, _, _]})(keys_ : Seq[total_.Id]) = new Extension[K, V] {
+  def apply[K <: AnyId, V](total_ : Total[V] {type Id >: K <: AnyId})(keys_ : Seq[total_.Id]) = new Extension[K, V] {
     val total : total_.type = total_
     val newIds : Seq[total.Id] = keys_
   }
 }
 object SingleExtension {
-  def apply[K <: Id2[_, _, _], V](total_ : Total[V] {type Id >: K <: Id2[_, _, _]})(key_ : total_.Id) = new SingleExtension[K, V] {
+  def apply[K <: AnyId, V](total_ : Total[V] {type Id >: K <: AnyId})(key_ : total_.Id) = new SingleExtension[K, V] {
     val total : total_.type = total_
     val newId : total.Id = key_
   }
 }
 
-trait Contraction[K <: Id2[_, _, _], +V] {
+trait Contraction[K <: AnyId, +V] {
+  val total: Total[V] {type Id <: K}
+  def removed : Seq[(K, V)]
+  def filter(k: K) : Option[total.Id]
+}
+trait SingleContraction[K <: AnyId, +V] extends Contraction[K, V] {
   val total: Total[V] {type Id <: K}
   val removedKey : K
   val removedValue : V
-  def filter(k: K) : Option[total.Id] =
+  def removed = List((removedKey, removedValue))
+  override def filter(k: K) =
     if (k.v == removedKey.v) None
     else Some(k.asInstanceOf[total.Id]) // This cast performed for performance reasons. O(nesting-level) proof seams too slow.
 }
