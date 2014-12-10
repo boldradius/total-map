@@ -23,6 +23,7 @@ class Id2[+U <: Unit, +A1 <: Id2[_, _, _] , +A2 <: Id2[_, _, _]] private (val v:
     if (v == 0) e(().asInstanceOf[U])
     else if ((v & 1) != 0) a1(new Id2(v >> 1).asInstanceOf[A1])
     else a2(new Id2((v >> 1) - 1).asInstanceOf[A2])
+  def ofId2 = this : Id2[_ <: Unit, _ <: Id2[_, _, _], _ <: Id2[_, _, _]]
   override def toString : String = "Id(" + v + ")"
 }
 

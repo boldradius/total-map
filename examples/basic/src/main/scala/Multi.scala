@@ -1,8 +1,8 @@
 import com.boldradius.total._
 
 case class Country(name: String)
-case class Address[CountryId](country: CountryId)
-case class Customer[AddressId](address: AddressId)
+case class Address[+CountryId](country: CountryId)
+case class Customer[+AddressId](address: AddressId)
 
 abstract class Data {
   val countries : Total[Country]

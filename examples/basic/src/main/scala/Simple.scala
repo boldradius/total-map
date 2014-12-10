@@ -22,5 +22,5 @@ object Simple {
 }
 
 // This simple syntax does work yet: SI-5712 dependent constructor types
-// sealed class Simple(val owners : Total[String])(val cars : List[owners.Id]) {}
+// sealed class Simple(val owners : Total[String])(val cars : List[owners.Id])
 

@@ -15,13 +15,29 @@
 */
 package com.boldradius.total
 
+/**
+ * An immutable indexable collection of values of type `V`. To index in the collection,
+ * the apply method must be called with an identifier of the member type ``Id``.
+ * Insertion in the collection produces a new collection with a different `Id` type that
+ * is a supertype of the original `Id` type. Conversely removal from the collection
+ * produces a new collection with an `Id` type that is a subtype or the original.
+ * @tparam V
+ */
 sealed trait Total[+V] {
+  /**
+   * The type for identifiers that may be used to index in the collection.
+   */
   type Id <: AnyId
   val size : Int
   def apply(k : Id) : V
+  def narrowId(id: Id2[_, _, _]) : Option[Id]
   def map[V2](f: V => V2): Total[V2] {type Id = Total.this.Id}
   def update[V2 >: V](k: Id, f: V2 => V2): Total[V2] {type Id = Total.this.Id}
   def insert[V2 >: V](value: V2): SingleExtension[Id, V2]
+  def split[A, B](f: V => Either[A, B]) : (TotalSub[Id, A], TotalSub[Id, B])
+  def toStream : Stream[(Id, V)]
+  private[total] def removeInner(removedKey: Id) : (TotalSub[Id, V], V)
+
   def insertAll[V2 >: V](values: Seq[V2]): Extension[Id, V2] = {
     values.foldLeft[Extension[Id, V2]](
       Extension[Id, V2](this)(Nil)) {
@@ -40,15 +56,14 @@ sealed trait Total[+V] {
       val removedKey = k
     }
   }
-  private[total] def removeInner(removedKey: Id) : (TotalSub[Id, V], V)
-  def toStream : Stream[(Id, V)]
-  // TODO: filter, filterOne
-
+  def filter(f: V => Boolean) = split(v => if (f(v)) Right(v) else Left(()))  // TODO: Define an optimized version, split rebuilds the whole tree
+  def keep[V2](f: V => Option[V2]) = split(f(_).toRight(()))
 }
-case object TotalNothing extends Total[Nothing] {
+private[total] case object TotalNothing extends Total[Nothing] {
   type Id = Nothing
   val size = 0
   def apply(k : Nothing) = k
+  def narrowId(id: Id2[_, _, _]) = None
   def map[V2](f: Nothing => V2) = this
   def update[V2 >: Nothing](k: Id, f: V2 => V2) = k
   def insert[V2 >: Nothing](value: V2) : SingleExtension[Id, V2] = {
@@ -57,12 +72,18 @@ case object TotalNothing extends Total[Nothing] {
     SingleExtension[Id, V2](i.total)(i.newId)
   }
   def removeInner(key: Nothing) = key
+  def split[A, B](f: Nothing => Either[A, B]) : (TotalSub[Id, A], TotalSub[Id, B]) = (Total.empty, Total.empty)
   def toStream = Stream.empty
 }
-case class TotalWith[+V, K1 <: AnyId, K2 <: AnyId](v: V, t1: Total[V] {type Id = K1}, t2: Total[V] {type Id = K2}) extends Total[V] {
+private[total] case class TotalWith[+V, K1 <: AnyId, K2 <: AnyId](v: V, t1: Total[V] {type Id = K1}, t2: Total[V] {type Id = K2}) extends Total[V] {
   type Id = Id2[Unit, K1, K2]
   val size = 1 + t1.size + t2.size
   def apply(k : Id) = k.fold(_ => v, t1(_), t2(_))
+  def narrowId(id: Id2[_, _, _]) =
+    id.ofId2.fold[Option[Id]](
+      _ => Some(Id2.zero),
+      i1 => t1.narrowId(i1).map(Id2.in1(_)),
+      i2 => t2.narrowId(i2).map(Id2.in2(_)))
   def map[V2](f: V => V2) = TotalWith(f(v), t1.map(f), t2.map(f))
   def update[V2 >: V](k: Id, f: V2 => V2) = {
     k.fold[Total[V2] {type Id = TotalWith.this.Id}](
@@ -93,13 +114,25 @@ case class TotalWith[+V, K1 <: AnyId, K2 <: AnyId](v: V, t1: Total[V] {type Id =
         val (t2a, removed) = t2.removeInner(k2)
         (TotalWith[V, t1.Id, t2a.Id](v, t1, t2a), removed)
       })
+  def split[A, B](f: V => Either[A, B]) : (TotalSub[Id, A], TotalSub[Id, B]) = {
+    val s1 = t1.split(f)
+    val s2 = t2.split(f)
+    f(v).fold(
+      a => (TotalWith(a, s1._1, s2._1), TotalWithout(s1._2, s2._2)),
+      b => (TotalWithout(s1._1, s2._1), TotalWith(b, s1._2, s2._2)))
+  }
   def toStream : Stream[(Id, V)] = // TODO: revisit method name, the order is surprising. Improve algorithm
     (Id2.zero, v) #:: (t1.toStream.map{case(k, v) => (Id2.in1(k), v)} : Stream[(Id, V)]).append(t2.toStream.map{case(k, v) => (Id2.in2(k), v)})
 }
-case class TotalWithout[+V, K1 <: AnyId, K2 <: AnyId](t1: Total[V] {type Id = K1}, t2: Total[V] {type Id = K2}) extends Total[V] {
+private[total] case class TotalWithout[+V, K1 <: AnyId, K2 <: AnyId](t1: Total[V] {type Id = K1}, t2: Total[V] {type Id = K2}) extends Total[V] {
   type Id = Id2[Nothing, K1, K2]
   val size = t1.size + t2.size
   def apply(k : Id) = k.fold((n: Nothing) => n, t1(_), t2(_))
+  def narrowId(id: Id2[_, _, _]) =
+    id.ofId2.fold[Option[Id]](
+      _ => None,
+      i1 => t1.narrowId(i1).map(Id2.in1(_)),
+      i2 => t2.narrowId(i2).map(Id2.in2(_)))
   def map[V2](f: V => V2) = {
     val t1a = t1.map(f)
     val t2a = t2.map(f)
@@ -129,6 +162,11 @@ case class TotalWithout[+V, K1 <: AnyId, K2 <: AnyId](t1: Total[V] {type Id = K1
         val (t2a, v) = t2.removeInner(k2)
         (TotalWithout[V, t1.Id, t2a.Id](t1, t2a), v)
       })
+  def split[A, B](f: V => Either[A, B]) : (TotalSub[Id, A], TotalSub[Id, B]) = {
+    val s1 = t1.split(f)
+    val s2 = t2.split(f)
+    (TotalWithout(s1._1, s2._1), TotalWithout(s1._2, s2._2))
+  }
   def toStream : Stream[(Id, V)] = // TODO: revisit method name, the order is surprising. Improve algorithm
     (t1.toStream.map{case(k, v) => (Id2.in1(k), v)} : Stream[(Id, V)]).append(t2.toStream.map{case(k, v) => (Id2.in2(k), v)})
 }
