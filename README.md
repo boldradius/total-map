@@ -17,18 +17,20 @@ the functions that update maps and away from functions that access them.
 ## Example:
 
 Let's say you have an application that maintains a collection of users, 
-and would to refer to users by their ids. You could do 
+and would to refer to users by their ids. You could do
+
     case class UserId(v: Long)
     val map : Map[UserId, User] = ???
     val id : UserId = ???
+    
 but then we have no compiler enforced guarantee that any particular user id is defined in the map. 
 A `UserId` may be a dangling reference within the map data structure.
 
 If we want to prevent that, we can instead use a `Total` map.
 Now the solution would look like this:
+
     val total : Total[User] = ???
     val id : total.Key = ???
-where `A` is in type class `Key`.
 
 Now we are guaranteed that the id, of type `total.Key`, has a corresponding `User` in `total`.
 
