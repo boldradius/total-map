@@ -40,8 +40,14 @@ This can eliminate one more class of bugs from our applications.
 
 ## Usage
 
-Add a resolver and the library dependency to your sbt project:
+Add a resolver and the library dependency to your sbt project (this resolver type is built-in to sbt starting from 0.13.6):
 
-    Resolver.bintrayRepo("boldradiussolutions", "maven")
-    "com.boldradius" %% "total-map" % "0.2.1"
+    resolvers += Resolver.bintrayRepo("boldradiussolutions", "maven")
 
+    libraryDependencies += "com.boldradius" %% "total-map" % "0.2.1"
+
+Then import the package. You will be able to reference the `Total` type, and its empty instance:
+
+    import com.boldradius.total._
+
+    class Data(val sentences: Total[String] = Total.empty)
