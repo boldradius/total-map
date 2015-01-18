@@ -19,14 +19,14 @@ package ops {
 
 trait Extension[K <: AnyId, +V] {
   val total: Total[V] {type Id >: K <: AnyId}
-  val newIds: Seq[total.Id]
+  def newIds: Seq[total.Id]
 
   def mapKeys(f: Seq[total.Id] => Seq[total.Id]): Extension[K, V] =
-    Extension[K, V](total)(f(newIds))
+    Extension.lazyKeys[K, V](total)(f(newIds))
 }
 
 trait SingleExtension[K <: AnyId, +V] extends Extension[K, V] {
-  final val newIds = List(newId)
+  final def newIds = List(newId)
   val newId: total.Id
 }
 
@@ -34,6 +34,10 @@ object Extension {
   def apply[K <: AnyId, V](total_ : Total[V] {type Id >: K <: AnyId})(keys_ : Seq[total_.Id]) = new Extension[K, V] {
     val total: total_.type = total_
     val newIds: Seq[total.Id] = keys_
+  }
+  def lazyKeys[K <: AnyId, V](total_ : Total[V] {type Id >: K <: AnyId})(keys_ : => Seq[total_.Id]) = new Extension[K, V] {
+    val total: total_.type = total_
+    lazy val newIds: Seq[total.Id] = keys_
   }
 }
 

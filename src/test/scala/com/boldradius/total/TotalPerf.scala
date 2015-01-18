@@ -6,7 +6,7 @@ import org.scalameter.{Gen, PerformanceTest}
  * Created by ppremont on 14-12-05.
  */
 class TotalPerf extends PerformanceTest.Quickbenchmark {
-  val sizes: Gen[Int] = Gen.range("size")(10000, 100000, 90000)
+  val sizes: Gen[Int] = Gen.range("size")(100000, 100000, 90000)
   val dummy: Gen[Unit] = Gen.single("")(Unit)
 
   performance of "Total" in {
