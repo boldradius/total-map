@@ -92,6 +92,11 @@ sealed trait Total[+V] {
   val size : Int
 
   /**
+   * Determines if the collection is empty.
+   */
+  def isEmpty : Boolean = size == 0
+
+  /**
    * Indexes in the collection.
    * @param id Any identifier in the `Id` type of this collection.
    * @return The value in the collection that corresponds to the id.
@@ -158,6 +163,13 @@ sealed trait Total[+V] {
   def partition[A, B](f: V => Either[A, B]) : (TotalSub[Id, A], TotalSub[Id, B])
 
   /**
+   * Filters out all elements whose id is also present in `t`.
+   * @param t A `Total` containing the identifiers to be removed.
+   * @return A `Total` which only contains the elements with identifiers not in `t`
+   */
+  def difference(t: Total[_]) : TotalSub[Id, V]
+
+  /**
    * A stream of all the elements in the collection, as tuples of id and value.
    * @return A stream of all the elements in the collection, as tuples of id and value.
    */
@@ -214,7 +226,7 @@ sealed trait Total[+V] {
    * @param p The predicate function, which is true for elements to be included
    * @return The new collection with a subset of the original elements.
    */
-  def filter(p: V => Boolean) = partition(v => if (p(v)) Right(v) else Left(()))  // TODO: Define an optimized version, partition rebuilds the whole tree
+  def filter(p: V => Boolean) = partition(v => if (p(v)) Right(v) else Left(()))._2  // TODO: Define an optimized version, partition rebuilds the whole tree
   /**
    * Keeps all elements that can be converted to a new type with a provided
    * test function. The function returns an `Option` of the new type, which is
@@ -238,6 +250,7 @@ private[total] case object TotalNothing extends Total[Nothing] {
     SingleExtension[Id, V2](i.total)(i.newId)
   }
   def removeInner(key: Nothing) = key
+  def difference(t: Total[_]) = TotalNothing
   def partition[A, B](f: Nothing => Either[A, B]) : (TotalSub[Id, A], TotalSub[Id, B]) = (Total.empty, Total.empty)
   def toStream = Stream.empty
 }
@@ -272,7 +285,7 @@ private[total] case class TotalWith[+V, K1 <: AnyId, K2 <: AnyId](v: V, t1: Tota
     }
   def removeInner(removedKey: Id): (TotalSub[Id, V], V) =
     removedKey.fold[(TotalSub[Id, V], V)](_ =>
-      (TotalWithout[V, t1.Id, t2.Id](t1, t2), v),
+      (Total.pair[V, t1.Id, t2.Id](t1, t2), v),
       k1 => {
         val (t1a, removed) = t1.removeInner(k1)
         (TotalWith[V, t1a.Id, t2.Id](v, t1a, t2), removed)
@@ -280,6 +293,13 @@ private[total] case class TotalWith[+V, K1 <: AnyId, K2 <: AnyId](v: V, t1: Tota
         val (t2a, removed) = t2.removeInner(k2)
         (TotalWith[V, t1.Id, t2a.Id](v, t1, t2a), removed)
       })
+  def difference(d: Total[_]) : TotalSub[Id, V] =
+    if (d.isEmpty) this
+    else d match {
+      case TotalWith(_, d1, d2) => Total.pair(t1.difference(d1), t2.difference(d2))
+      case TotalWithout(d1, d2) => TotalWith(v, t1.difference(d1), t2.difference(d2))
+      case _ => this
+    }
   def partition[A, B](f: V => Either[A, B]) : (TotalSub[Id, A], TotalSub[Id, B]) = {
     val s1 = t1.partition(f)
     val s2 = t2.partition(f)
@@ -328,6 +348,13 @@ private[total] case class TotalWithout[+V, K1 <: AnyId, K2 <: AnyId](t1: Total[V
         val (t2a, v) = t2.removeInner(k2)
         (TotalWithout[V, t1.Id, t2a.Id](t1, t2a), v)
       })
+  def difference(d: Total[_]) : TotalSub[Id, V] =
+    if (d.isEmpty) this
+    else d match {
+      case TotalWith(_, d1, d2) => Total.pair(t1.difference(d1), t2.difference(d2))
+      case TotalWithout(d1, d2) => Total.pair(t1.difference(d1), t2.difference(d2))
+      case _ => this
+    }
   def partition[A, B](f: V => Either[A, B]) : (TotalSub[Id, A], TotalSub[Id, B]) = {
     val s1 = t1.partition(f)
     val s2 = t2.partition(f)
@@ -339,5 +366,7 @@ private[total] case class TotalWithout[+V, K1 <: AnyId, K2 <: AnyId](t1: Total[V
 
 object Total {
   val empty = TotalNothing
+  private[total] def pair[V, K1 <: AnyId, K2 <: AnyId](t1: Total[V] {type Id = K1}, t2: Total[V] {type Id = K2}) : Total[V] {type Id <: Id2[Nothing, K1, K2]} =
+    if (t1.isEmpty && t2.isEmpty) TotalNothing else TotalWithout[V, t1.Id, t2.Id](t1, t2)
 }
 

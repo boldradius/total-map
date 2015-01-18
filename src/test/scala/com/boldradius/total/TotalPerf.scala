@@ -21,5 +21,14 @@ class TotalPerf extends PerformanceTest.Quickbenchmark {
         toSplit.filter(_ % 4 == 0)
       }
     }
+    val toDiff1 = Total.empty.insertAll(0 to 100000).total
+    val toDiff2 = toDiff1.filter(_ % 4 == 0)
+    System.out.println(toDiff2.size)
+    measure method "filter" in {
+      using(dummy) in { _ =>
+        toDiff1.difference(toDiff2)
+      }
+    }
+    System.out.println(toDiff1.difference(toDiff2).size)
   }
 }
