@@ -86,6 +86,11 @@ sealed trait Total[+V] {
    * The type for identifiers that may be used to index in the collection.
    */
   type Id <: AnyId
+
+  /**
+   * The type for identifiers that may be inserted in the collection
+   */
+  type Comp <: AnyId
   /**
    * The number of elements in the collection. This size is accessible in constant time.
    */
@@ -113,7 +118,7 @@ sealed trait Total[+V] {
    * @return The same id, converted to the collection's `Id` type, or None if the
    *         id is not part of the collection.
    */
-  def narrowId(id: Id2[_, _, _]) : Option[Id]
+  def narrowId(id: AnyId) : Option[Id]
 
   /**
    * Applies a function to every element of the collection and produces a
@@ -134,6 +139,29 @@ sealed trait Total[+V] {
    * @return The new ``Total``, with the same `Id` type.
    */
   def update[V2 >: V](id: Id, f: V2 => V2): Total[V2] {type Id = Total.this.Id}
+
+  /**
+   * Allocates an unused id. Since it is not currently in the collection, it
+   * is of type `Comp`.
+   * @return
+   */
+  def allocate : Comp
+
+  /**
+   * Adds an element to the collection at the specified id, which must not
+   * already be in the collection. The resulting `Total` has
+   * an `Id` type which is a supertype of the original `Id` type, so any
+   * values of the old `Id` type that were kept in other data structures,
+   * may simply be upcasted to the new `Id` type.
+   * @param id The new id where the value will be added to the collection.
+   *           It must not currently be in the collection, so its type must must be `Comp`.
+   *           Use `allocate` to obtain such an id.
+   * @param value The value to be inserted in the collection
+   * @tparam V2 The type of the value to insert, which will be the value type of the
+   *            resulting collection.
+   * @return The resulting Total
+   */
+  def insertAt[V2 >: V](id: Comp, value: V2): TotalSuper[Id, V2]
 
   /**
    * Adds an element to the collection. An id is automatically allocated,
@@ -239,15 +267,20 @@ sealed trait Total[+V] {
 }
 private[total] case object TotalNothing extends Total[Nothing] {
   type Id = Nothing
+  type Comp = AnyId
   val size = 0
   def apply(k : Nothing) = k
-  def narrowId(id: Id2[_, _, _]) = None
+  def narrowId(id: AnyId) = None
   def map[V2](f: Nothing => V2) = this
   def update[V2 >: Nothing](k: Id, f: V2 => V2) = k
+  def allocate : Comp = Id2.zero
+  def insertAt[V2 >: Nothing](id: Comp, value: V2): TotalSuper[Id, V2] =
+    id.ofId2.fold[TotalSuper[Id, V2]](_ => TotalWith[V2, Nothing, Nothing](value, TotalNothing, TotalNothing),
+      i1 => {val i=TotalNothing.insertAt[V2](i1, value); TotalWithout[V2, i.Id, Nothing](i, TotalNothing)},
+      i2 => {val i=TotalNothing.insertAt[V2](i2, value); TotalWithout[V2, Nothing, i.Id](TotalNothing, i)})
   def insert[V2 >: Nothing](value: V2) : SingleExtension[Id, V2] = {
-    val inter = TotalWithout[V2, Nothing, Nothing](TotalNothing, TotalNothing)
-    val i = inter.insert(value)
-    SingleExtension[Id, V2](i.total)(i.newId)
+    val inter = TotalWith[V2, Nothing, Nothing](value, TotalNothing, TotalNothing)
+    SingleExtension[Id, V2](inter)(Id2.zero)
   }
   def removeInner(key: Nothing) = key
   def difference(t: Total[_]) = TotalNothing
@@ -256,9 +289,10 @@ private[total] case object TotalNothing extends Total[Nothing] {
 }
 private[total] case class TotalWith[+V, K1 <: AnyId, K2 <: AnyId](v: V, t1: Total[V] {type Id = K1}, t2: Total[V] {type Id = K2}) extends Total[V] {
   type Id = Id2[Unit, K1, K2]
+  type Comp = Id2[Nothing, t1.Comp, t2.Comp]
   val size = 1 + t1.size + t2.size
   def apply(k : Id) = k.fold(_ => v, t1(_), t2(_))
-  def narrowId(id: Id2[_, _, _]) =
+  def narrowId(id: AnyId) =
     id.ofId2.fold[Option[Id]](
       _ => Some(Id2.zero),
       i1 => t1.narrowId(i1).map(Id2.in1(_)),
@@ -274,6 +308,13 @@ private[total] case class TotalWith[+V, K1 <: AnyId, K2 <: AnyId](v: V, t1: Tota
         val t2a = t2.update(k2, f)
         TotalWith[V2, K1, K2](v, t1, t2a)})
   }
+  def allocate : Comp =
+    if (t1.size <= t2.size) Id2.in1(t1.allocate)
+    else Id2.in2(t2.allocate)
+  def insertAt[V2 >: V](id: Comp, value: V2): TotalSuper[Id, V2] =
+    id.fold[TotalSuper[Id, V2]](identity _,
+      i1 => {val i=t1.insertAt[V2](i1, value); TotalWith[V2, i.Id, t2.Id](v, i, t2)},
+      i2 => {val i=t2.insertAt[V2](i2, value); TotalWith[V2, t1.Id, i.Id](v, t1, i)})
   def insert[V2 >: V](value: V2) =
     if (t1.size <= t2.size) {
       val ext = t1.insert(value)
@@ -312,9 +353,10 @@ private[total] case class TotalWith[+V, K1 <: AnyId, K2 <: AnyId](v: V, t1: Tota
 }
 private[total] case class TotalWithout[+V, K1 <: AnyId, K2 <: AnyId](t1: Total[V] {type Id = K1}, t2: Total[V] {type Id = K2}) extends Total[V] {
   type Id = Id2[Nothing, K1, K2]
+  type Comp = Id2[Unit, t1.Comp, t2.Comp]
   val size = t1.size + t2.size
   def apply(k : Id) = k.fold((n: Nothing) => n, t1(_), t2(_))
-  def narrowId(id: Id2[_, _, _]) =
+  def narrowId(id: AnyId) =
     id.ofId2.fold[Option[Id]](
       _ => None,
       i1 => t1.narrowId(i1).map(Id2.in1(_)),
@@ -334,6 +376,11 @@ private[total] case class TotalWithout[+V, K1 <: AnyId, K2 <: AnyId](t1: Total[V
         val t2a = t2.update(k2, f)
         TotalWithout[V2, t1.Id, t2a.Id](t1, t2a)})
   }
+  def allocate : Comp = Id2.zero
+  def insertAt[V2 >: V](id: Comp, value: V2): TotalSuper[Id, V2] =
+    id.fold[TotalSuper[Id, V2]](_ => TotalWith[V2, t1.Id, t2.Id](value, t1, t2),
+      i1 => {val i=t1.insertAt[V2](i1, value); TotalWithout[V2, i.Id, t2.Id](i, t2)},
+      i2 => {val i=t2.insertAt[V2](i2, value); TotalWithout[V2, t1.Id, i.Id](t1, i)})
   def insert[V2 >: V](value: V2) =
     new SingleExtension[Id, V2] {
       val total = TotalWith[V2, t1.Id, t2.Id](value, t1, t2)

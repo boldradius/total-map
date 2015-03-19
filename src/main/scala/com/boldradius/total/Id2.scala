@@ -16,20 +16,24 @@
 package com.boldradius.total
 
 
-class Id2[+U <: Unit, +A1 <: Id2[_, _, _] , +A2 <: Id2[_, _, _]] private (val v: Long) extends AnyVal {
+sealed trait AnyId extends Any {
+  def v: Long
+  def ofId2 : Id2[_ <: Unit, _ <: AnyId, _ <: AnyId]
+}
+class Id2[+U <: Unit, +A1 <: AnyId , +A2 <: AnyId] private (val v: Long) extends AnyVal with AnyId {
   def in1 = Id2.in1(this)
   def in2 = Id2.in2(this)
   def fold[Z](e: U => Z, a1: A1 => Z, a2: A2 => Z) : Z =
     if (v == 0) e(().asInstanceOf[U])
     else if ((v & 1) != 0) a1(new Id2(v >> 1).asInstanceOf[A1])
     else a2(new Id2((v >> 1) - 1).asInstanceOf[A2])
-  def ofId2 = this : Id2[_ <: Unit, _ <: Id2[_, _, _], _ <: Id2[_, _, _]]
+  def ofId2 = this : Id2[_ <: Unit, _ <: AnyId, _ <: AnyId]
   override def toString : String = "Id(" + v + ")"
 }
 
 object Id2 {
-  def in1[A <: Id2[_, _,_]](id: A) : Id2[Nothing, A, Nothing] = new Id2(id.v * 2 + 1)
-  def in2[A <: Id2[_, _,_]](id: A) : Id2[Nothing, Nothing, A] = new Id2(id.v * 2 + 2)
+  def in1[A <: AnyId](id: A) : Id2[Nothing, A, Nothing] = new Id2(id.v * 2 + 1)
+  def in2[A <: AnyId](id: A) : Id2[Nothing, Nothing, A] = new Id2(id.v * 2 + 2)
   val zero : Id2[Unit, Nothing, Nothing] = new Id2(0)
   // Numbering occurs in this order. Same you obtain by picking branch of minimum size, biased to the left.
   //     0
