@@ -17,38 +17,38 @@ package com.boldradius.total
 
 package ops {
 
-trait Extension[K <: AnyId, +V] {
-  val total: Total[V] {type Id >: K <: AnyId}
+trait Extension[K <: Id2[_, _, _], +V] {
+  val total: Total[V] {type Id >: K <: Id2[_, _, _]}
   def newIds: Seq[total.Id]
 
   def mapKeys(f: Seq[total.Id] => Seq[total.Id]): Extension[K, V] =
     Extension.lazyKeys[K, V](total)(f(newIds))
 }
 
-trait SingleExtension[K <: AnyId, +V] extends Extension[K, V] {
+trait SingleExtension[K <: Id2[_, _, _], +V] extends Extension[K, V] {
   final def newIds = List(newId)
   val newId: total.Id
 }
 
 object Extension {
-  def apply[K <: AnyId, V](total_ : Total[V] {type Id >: K <: AnyId})(keys_ : Seq[total_.Id]) = new Extension[K, V] {
+  def apply[K <: Id2[_, _, _], V](total_ : Total[V] {type Id >: K <: Id2[_, _, _]})(keys_ : Seq[total_.Id]) = new Extension[K, V] {
     val total: total_.type = total_
     val newIds: Seq[total.Id] = keys_
   }
-  def lazyKeys[K <: AnyId, V](total_ : Total[V] {type Id >: K <: AnyId})(keys_ : => Seq[total_.Id]) = new Extension[K, V] {
+  def lazyKeys[K <: Id2[_, _, _], V](total_ : Total[V] {type Id >: K <: Id2[_, _, _]})(keys_ : => Seq[total_.Id]) = new Extension[K, V] {
     val total: total_.type = total_
     lazy val newIds: Seq[total.Id] = keys_
   }
 }
 
 object SingleExtension {
-  def apply[K <: AnyId, V](total_ : Total[V] {type Id >: K <: AnyId})(key_ : total_.Id) = new SingleExtension[K, V] {
+  def apply[K <: Id2[_, _, _], V](total_ : Total[V] {type Id >: K <: Id2[_, _, _]})(key_ : total_.Id) = new SingleExtension[K, V] {
     val total: total_.type = total_
     val newId: total.Id = key_
   }
 }
 
-trait Contraction[K <: AnyId, +V] {
+trait Contraction[K, +V] {
   val total: Total[V] {type Id <: K}
 
   def removed: Seq[(K, V)]
@@ -56,7 +56,7 @@ trait Contraction[K <: AnyId, +V] {
   def filter(k: K): Option[total.Id]
 }
 
-trait SingleContraction[K <: AnyId, +V] extends Contraction[K, V] {
+trait SingleContraction[K <: Id2[_, _, _], +V] extends Contraction[K, V] {
   val total: Total[V] {type Id <: K}
   val removedKey: K
   val removedValue: V
@@ -85,12 +85,12 @@ sealed trait Total[+V] {
   /**
    * The type for identifiers that may be used to index in the collection.
    */
-  type Id <: AnyId
+  type Id <: Id2[_, _, _]
 
   /**
    * The type for identifiers that may be inserted in the collection
    */
-  type Comp <: AnyId
+  type Comp <: Id2[_, _, _]
   /**
    * The number of elements in the collection. This size is accessible in constant time.
    */
@@ -118,7 +118,7 @@ sealed trait Total[+V] {
    * @return The same id, converted to the collection's `Id` type, or None if the
    *         id is not part of the collection.
    */
-  def narrowId(id: AnyId) : Option[Id]
+  def narrowId(id: Id2[_, _, _]) : Option[Id]
 
   /**
    * Applies a function to every element of the collection and produces a
@@ -267,17 +267,17 @@ sealed trait Total[+V] {
 }
 private[total] case object TotalNothing extends Total[Nothing] {
   type Id = Nothing
-  type Comp = AnyId
+  type Comp = Id2[Unit, _, _]
   val size = 0
   def apply(k : Nothing) = k
-  def narrowId(id: AnyId) = None
+  def narrowId(id: Id2[_, _, _]) = None
   def map[V2](f: Nothing => V2) = this
   def update[V2 >: Nothing](k: Id, f: V2 => V2) = k
   def allocate : Comp = Id2.zero
   def insertAt[V2 >: Nothing](id: Comp, value: V2): TotalSuper[Id, V2] =
     id.ofId2.fold[TotalSuper[Id, V2]](_ => TotalWith[V2, Nothing, Nothing](value, TotalNothing, TotalNothing),
-      i1 => {val i=TotalNothing.insertAt[V2](i1, value); TotalWithout[V2, i.Id, Nothing](i, TotalNothing)},
-      i2 => {val i=TotalNothing.insertAt[V2](i2, value); TotalWithout[V2, Nothing, i.Id](TotalNothing, i)})
+      i1 => {val i=TotalNothing.insertAt[V2](i1.ofId2, value); TotalWithout[V2, i.Id, Nothing](i, TotalNothing)},
+      i2 => {val i=TotalNothing.insertAt[V2](i2.ofId2, value); TotalWithout[V2, Nothing, i.Id](TotalNothing, i)})
   def insert[V2 >: Nothing](value: V2) : SingleExtension[Id, V2] = {
     val inter = TotalWith[V2, Nothing, Nothing](value, TotalNothing, TotalNothing)
     SingleExtension[Id, V2](inter)(Id2.zero)
@@ -287,12 +287,12 @@ private[total] case object TotalNothing extends Total[Nothing] {
   def partition[A, B](f: Nothing => Either[A, B]) : (TotalSub[Id, A], TotalSub[Id, B]) = (Total.empty, Total.empty)
   def toStream = Stream.empty
 }
-private[total] case class TotalWith[+V, K1 <: AnyId, K2 <: AnyId](v: V, t1: Total[V] {type Id = K1}, t2: Total[V] {type Id = K2}) extends Total[V] {
+private[total] case class TotalWith[+V, K1 <: Id2[_, _, _], K2 <: Id2[_, _, _]](v: V, t1: Total[V] {type Id = K1}, t2: Total[V] {type Id = K2}) extends Total[V] {
   type Id = Id2[Unit, K1, K2]
   type Comp = Id2[Nothing, t1.Comp, t2.Comp]
   val size = 1 + t1.size + t2.size
   def apply(k : Id) = k.fold(_ => v, t1(_), t2(_))
-  def narrowId(id: AnyId) =
+  def narrowId(id: Id2[_, _, _]) =
     id.ofId2.fold[Option[Id]](
       _ => Some(Id2.zero),
       i1 => t1.narrowId(i1).map(Id2.in1(_)),
@@ -351,12 +351,12 @@ private[total] case class TotalWith[+V, K1 <: AnyId, K2 <: AnyId](v: V, t1: Tota
   def toStream : Stream[(Id, V)] = // TODO: revisit method name, the order is surprising. Improve algorithm
     (Id2.zero, v) #:: (t1.toStream.map{case(k, v) => (Id2.in1(k), v)} : Stream[(Id, V)]).append(t2.toStream.map{case(k, v) => (Id2.in2(k), v)})
 }
-private[total] case class TotalWithout[+V, K1 <: AnyId, K2 <: AnyId](t1: Total[V] {type Id = K1}, t2: Total[V] {type Id = K2}) extends Total[V] {
+private[total] case class TotalWithout[+V, K1 <: Id2[_, _, _], K2 <: Id2[_, _, _]](t1: Total[V] {type Id = K1}, t2: Total[V] {type Id = K2}) extends Total[V] {
   type Id = Id2[Nothing, K1, K2]
   type Comp = Id2[Unit, t1.Comp, t2.Comp]
   val size = t1.size + t2.size
   def apply(k : Id) = k.fold((n: Nothing) => n, t1(_), t2(_))
-  def narrowId(id: AnyId) =
+  def narrowId(id: Id2[_, _, _]) =
     id.ofId2.fold[Option[Id]](
       _ => None,
       i1 => t1.narrowId(i1).map(Id2.in1(_)),
@@ -413,7 +413,7 @@ private[total] case class TotalWithout[+V, K1 <: AnyId, K2 <: AnyId](t1: Total[V
 
 object Total {
   val empty = TotalNothing
-  private[total] def pair[V, K1 <: AnyId, K2 <: AnyId](t1: Total[V] {type Id = K1}, t2: Total[V] {type Id = K2}) : Total[V] {type Id <: Id2[Nothing, K1, K2]} =
+  private[total] def pair[V, K1 <: Id2[_, _, _], K2 <: Id2[_, _, _]](t1: Total[V] {type Id = K1}, t2: Total[V] {type Id = K2}) : Total[V] {type Id <: Id2[Nothing, K1, K2]} =
     if (t1.isEmpty && t2.isEmpty) TotalNothing else TotalWithout[V, t1.Id, t2.Id](t1, t2)
 }
 

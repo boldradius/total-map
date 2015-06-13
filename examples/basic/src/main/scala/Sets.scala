@@ -5,7 +5,7 @@ trait Sets {
   val subset : TotalSub[set.Id, Unit] // Implements a primary key which is also a foreign key
   val superset : TotalSuper[set.Id, Unit]
   val sameSet : TotalMap[set.Id, Unit]
-  val disjointSet : TotalSub[set.Comp, Unit]
+  //val disjointSet : TotalSub[set.Comp, Unit]
 }
 
 object Sets {

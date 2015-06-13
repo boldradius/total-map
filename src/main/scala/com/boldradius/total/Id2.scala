@@ -15,25 +15,56 @@
 */
 package com.boldradius.total
 
+/*
+trait TrueOrFalse {
+  type Inst
+}
 
+case class True() extends TrueOrFalse {
+  type Not = False
+  type If[A, B] = A
+  type Inst = TrueOrFalse
+}
+case class False(n: Nothing) extends TrueOrFalse{
+  type Not = True
+  type If[A, B] = B
+  type Inst = False
+}
+object Bools {
+  type IsTrue[A <: TrueOrFalse] = A <: A#Inst         // T for some T <: A#Inst
+  val a : IsTrue[True] = implicitly
+  val b : IsTrue[False] = implicitly
+  val c : IsTrue[True] = (??? : IsTrue[False])
+}
+
+case class One() extends ZeroOne[Unit] {
+  type Complement = Zero
+}
+class Zero extends ZeroOne[Nothing] with One {
+  type Complement = One
+}
+*/
+ /*
 sealed trait AnyId extends Any {
+//  type Complement
   def v: Long
   def ofId2 : Id2[_ <: Unit, _ <: AnyId, _ <: AnyId]
-}
-class Id2[+U <: Unit, +A1 <: AnyId , +A2 <: AnyId] private (val v: Long) extends AnyVal with AnyId {
+}*/
+class Id2[+U <: Unit, +A1, +A2] private (val v: Long) extends AnyVal {
+//  type Complement =  Id2[U, A1#Complement, A2#Complement]
   def in1 = Id2.in1(this)
   def in2 = Id2.in2(this)
   def fold[Z](e: U => Z, a1: A1 => Z, a2: A2 => Z) : Z =
     if (v == 0) e(().asInstanceOf[U])
     else if ((v & 1) != 0) a1(new Id2(v >> 1).asInstanceOf[A1])
     else a2(new Id2((v >> 1) - 1).asInstanceOf[A2])
-  def ofId2 = this : Id2[_ <: Unit, _ <: AnyId, _ <: AnyId]
+  def ofId2 = this.asInstanceOf[Id2[_ <: Unit, _ <: A1 with Id2[_, _, _], _ <: A2 with Id2[_, _, _]]]
   override def toString : String = "Id(" + v + ")"
 }
 
 object Id2 {
-  def in1[A <: AnyId](id: A) : Id2[Nothing, A, Nothing] = new Id2(id.v * 2 + 1)
-  def in2[A <: AnyId](id: A) : Id2[Nothing, Nothing, A] = new Id2(id.v * 2 + 2)
+  def in1[A <: Id2[_, _, _]](id: A) : Id2[Nothing, A, Nothing] = new Id2(id.v * 2 + 1)
+  def in2[A <: Id2[_, _, _]](id: A) : Id2[Nothing, Nothing, A] = new Id2(id.v * 2 + 2)
   val zero : Id2[Unit, Nothing, Nothing] = new Id2(0)
   // Numbering occurs in this order. Same you obtain by picking branch of minimum size, biased to the left.
   //     0
