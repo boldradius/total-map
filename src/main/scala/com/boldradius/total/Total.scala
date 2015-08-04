@@ -91,6 +91,20 @@ sealed trait Total[+V] {
    * The type for identifiers that may be inserted in the collection
    */
   type Comp <: Id2[_, _, _]
+
+  type Super[V] = Total[V] {
+    type Id >: Total.this.Id <: Id2[_, _, _]
+    type Comp <: Total.this.Comp
+  }
+  type Sub[V] = Total[V] {
+    type Id <: Total.this.Id
+    type Comp >: Total.this.Comp <: Id2[_, _, _]
+  }
+  type Map[V] = Total[V] {
+    type Id = Total.this.Id
+    type Comp = Total.this.Comp
+  }
+
   /**
    * The number of elements in the collection. This size is accessible in constant time.
    */
@@ -128,7 +142,7 @@ sealed trait Total[+V] {
    * @tparam V2 The type of the resulting elements
    * @return The new ``Total``, with the same `Id` type.
    */
-  def map[V2](f: V => V2): Total[V2] {type Id = Total.this.Id}
+  def map[V2](f: V => V2): Map[V2]
   /**
    * Updates a particular element of the collection. Applies a function to this
    * element and produces a new collection where the element is replaced by the
@@ -138,7 +152,7 @@ sealed trait Total[+V] {
    * @tparam V2 The type of the resulting elements
    * @return The new ``Total``, with the same `Id` type.
    */
-  def update[V2 >: V](id: Id, f: V2 => V2): Total[V2] {type Id = Total.this.Id}
+  def update[V2 >: V](id: Id, f: V2 => V2): Map[V2]
 
   /**
    * Allocates an unused id. Since it is not currently in the collection, it
@@ -161,7 +175,7 @@ sealed trait Total[+V] {
    *            resulting collection.
    * @return The resulting Total
    */
-  def insertAt[V2 >: V](id: Comp, value: V2): TotalSuper[Id, V2]
+  def insertAt[V2 >: V](id: Comp, value: V2): Super[V2]
 
   /**
    * Adds an element to the collection. An id is automatically allocated,
@@ -188,21 +202,21 @@ sealed trait Total[+V] {
    * @tparam B The value type of the ``Total`` for the `Left` class.
    * @return A tuple of the two resulting ``Total`` (left and right).
    */
-  def partition[A, B](f: V => Either[A, B]) : (TotalSub[Id, A], TotalSub[Id, B])
+  def partition[A, B](f: V => Either[A, B]) : (Sub[A], Sub[B])
 
   /**
    * Filters out all elements whose id is also present in `t`.
    * @param t A `Total` containing the identifiers to be removed.
    * @return A `Total` which only contains the elements with identifiers not in `t`
    */
-  def difference(t: Total[_]) : TotalSub[Id, V]
+  def difference(t: Total[_]) : Sub[V]
 
   /**
    * A stream of all the elements in the collection, as tuples of id and value.
    * @return A stream of all the elements in the collection, as tuples of id and value.
    */
   def toStream : Stream[(Id, V)]
-  private[total] def removeInner(removedKey: Id) : (TotalSub[Id, V], V)
+  private[total] def removeInner(removedKey: Id) : (Sub[V], V)
 
   /**
    * Adds a sequence of elements to the collection. A corresponding number of
@@ -274,22 +288,22 @@ private[total] case object TotalNothing extends Total[Nothing] {
   def map[V2](f: Nothing => V2) = this
   def update[V2 >: Nothing](k: Id, f: V2 => V2) = k
   def allocate : Comp = Id2.zero
-  def insertAt[V2 >: Nothing](id: Comp, value: V2): TotalSuper[Id, V2] =
-    id.ofId2.fold[TotalSuper[Id, V2]](_ => TotalWith[V2, Nothing, Nothing](value, TotalNothing, TotalNothing),
-      i1 => {val i=TotalNothing.insertAt[V2](i1.ofId2, value); TotalWithout[V2, i.Id, Nothing](i, TotalNothing)},
-      i2 => {val i=TotalNothing.insertAt[V2](i2.ofId2, value); TotalWithout[V2, Nothing, i.Id](TotalNothing, i)})
+  def insertAt[V2 >: Nothing](id: Comp, value: V2): Super[V2] =
+    id.ofId2.fold[Super[V2]](_ => TotalWith[V2, Nothing, Nothing, Comp, Comp](value, TotalNothing, TotalNothing),
+      i1 => {val i=TotalNothing.insertAt[V2](i1.ofId2, value); TotalWithout[V2, i.Id, Nothing, i.Comp, Comp](i, TotalNothing)},
+      i2 => {val i=TotalNothing.insertAt[V2](i2.ofId2, value); TotalWithout[V2, Nothing, i.Id, Comp, i.Comp](TotalNothing, i)})
   def insert[V2 >: Nothing](value: V2) : SingleExtension[Id, V2] = {
-    val inter = TotalWith[V2, Nothing, Nothing](value, TotalNothing, TotalNothing)
+    val inter = TotalWith[V2, Nothing, Nothing, Comp, Comp](value, TotalNothing, TotalNothing)
     SingleExtension[Id, V2](inter)(Id2.zero)
   }
   def removeInner(key: Nothing) = key
   def difference(t: Total[_]) = TotalNothing
-  def partition[A, B](f: Nothing => Either[A, B]) : (TotalSub[Id, A], TotalSub[Id, B]) = (Total.empty, Total.empty)
+  def partition[A, B](f: Nothing => Either[A, B]) : (Sub[A], Sub[B]) = (Total.empty, Total.empty)
   def toStream = Stream.empty
 }
-private[total] case class TotalWith[+V, K1 <: Id2[_, _, _], K2 <: Id2[_, _, _]](v: V, t1: Total[V] {type Id = K1}, t2: Total[V] {type Id = K2}) extends Total[V] {
+private[total] case class TotalWith[+V, K1 <: Id2[_, _, _], K2 <: Id2[_, _, _], C1 <: Id2[_, _, _], C2 <: Id2[_, _, _]](v: V, t1: Total[V] {type Id = K1; type Comp = C1}, t2: Total[V] {type Id = K2; type Comp = C2}) extends Total[V] {
   type Id = Id2[Unit, K1, K2]
-  type Comp = Id2[Nothing, t1.Comp, t2.Comp]
+  type Comp = Id2[Nothing, C1, C2]
   val size = 1 + t1.size + t2.size
   def apply(k : Id) = k.fold(_ => v, t1(_), t2(_))
   def narrowId(id: Id2[_, _, _]) =
@@ -299,59 +313,59 @@ private[total] case class TotalWith[+V, K1 <: Id2[_, _, _], K2 <: Id2[_, _, _]](
       i2 => t2.narrowId(i2).map(Id2.in2(_)))
   def map[V2](f: V => V2) = TotalWith(f(v), t1.map(f), t2.map(f))
   def update[V2 >: V](k: Id, f: V2 => V2) = {
-    k.fold[Total[V2] {type Id = TotalWith.this.Id}](
-      _ => TotalWith[V2, K1, K2](f(v), t1, t2),
+    k.fold[Map[V2]](
+      _ => TotalWith[V2, K1, K2, C1, C2](f(v), t1, t2),
       k1 => {
         val t1a = t1.update(k1, f)
-        TotalWith[V2, K1, K2](v, t1a, t2)},
+        TotalWith[V2, K1, K2, C1, C2](v, t1a, t2)},
       k2 => {
         val t2a = t2.update(k2, f)
-        TotalWith[V2, K1, K2](v, t1, t2a)})
+        TotalWith[V2, K1, K2, C1, C2](v, t1, t2a)})
   }
   def allocate : Comp =
     if (t1.size <= t2.size) Id2.in1(t1.allocate)
     else Id2.in2(t2.allocate)
-  def insertAt[V2 >: V](id: Comp, value: V2): TotalSuper[Id, V2] =
-    id.fold[TotalSuper[Id, V2]](identity _,
-      i1 => {val i=t1.insertAt[V2](i1, value); TotalWith[V2, i.Id, t2.Id](v, i, t2)},
-      i2 => {val i=t2.insertAt[V2](i2, value); TotalWith[V2, t1.Id, i.Id](v, t1, i)})
+  def insertAt[V2 >: V](id: Comp, value: V2): Super[V2] =
+    id.fold[Super[V2]](identity _,
+      i1 => {val i=t1.insertAt[V2](i1, value); TotalWith[V2, i.Id, t2.Id, i.Comp, t2.Comp](v, i, t2)},
+      i2 => {val i=t2.insertAt[V2](i2, value); TotalWith[V2, t1.Id, i.Id, t1.Comp, i.Comp](v, t1, i)})
   def insert[V2 >: V](value: V2) =
     if (t1.size <= t2.size) {
       val ext = t1.insert(value)
-      SingleExtension[Id, V2](TotalWith[V2, ext.total.Id, K2](v, ext.total, t2))(Id2.in1(ext.newId))
+      SingleExtension[Id, V2](TotalWith[V2, ext.total.Id, K2, ext.total.Comp, C2](v, ext.total, t2))(Id2.in1(ext.newId))
     }
     else {
       val ext = t2.insert(value)
-      SingleExtension[Id, V2](TotalWith[V2, K1, ext.total.Id](v, t1, ext.total))(Id2.in2(ext.newId))
+      SingleExtension[Id, V2](TotalWith[V2, K1, ext.total.Id, C1, ext.total.Comp](v, t1, ext.total))(Id2.in2(ext.newId))
     }
-  def removeInner(removedKey: Id): (TotalSub[Id, V], V) =
-    removedKey.fold[(TotalSub[Id, V], V)](_ =>
-      (Total.pair[V, t1.Id, t2.Id](t1, t2), v),
+  def removeInner(removedKey: Id): (Sub[V], V) =
+    removedKey.fold[(Sub[V], V)](_ =>
+      (Total.pair[V, t1.Id, t2.Id, t1.Comp, t2.Comp](t1, t2), v),
       k1 => {
         val (t1a, removed) = t1.removeInner(k1)
-        (TotalWith[V, t1a.Id, t2.Id](v, t1a, t2), removed)
+        (TotalWith[V, t1a.Id, t2.Id, t1a.Comp, t2.Comp](v, t1a, t2), removed)
       }, k2 => {
         val (t2a, removed) = t2.removeInner(k2)
-        (TotalWith[V, t1.Id, t2a.Id](v, t1, t2a), removed)
+        (TotalWith[V, t1.Id, t2a.Id, t1.Comp, t2a.Comp](v, t1, t2a), removed)
       })
-  def difference(d: Total[_]) : TotalSub[Id, V] =
+  def difference(d: Total[_]) : Sub[V] =
     if (d.isEmpty) this
     else d match {
       case TotalWith(_, d1, d2) => Total.pair(t1.difference(d1), t2.difference(d2))
       case TotalWithout(d1, d2) => TotalWith(v, t1.difference(d1), t2.difference(d2))
       case _ => this
     }
-  def partition[A, B](f: V => Either[A, B]) : (TotalSub[Id, A], TotalSub[Id, B]) = {
+  def partition[A, B](f: V => Either[A, B]) : (Sub[A], Sub[B]) = {
     val s1 = t1.partition(f)
     val s2 = t2.partition(f)
-    f(v).fold(
+    f(v).fold[(Sub[A], Sub[B])](
       a => (TotalWith(a, s1._1, s2._1), TotalWithout(s1._2, s2._2)),
       b => (TotalWithout(s1._1, s2._1), TotalWith(b, s1._2, s2._2)))
   }
   def toStream : Stream[(Id, V)] = // TODO: revisit method name, the order is surprising. Improve algorithm
     (Id2.zero, v) #:: (t1.toStream.map{case(k, v) => (Id2.in1(k), v)} : Stream[(Id, V)]).append(t2.toStream.map{case(k, v) => (Id2.in2(k), v)})
 }
-private[total] case class TotalWithout[+V, K1 <: Id2[_, _, _], K2 <: Id2[_, _, _]](t1: Total[V] {type Id = K1}, t2: Total[V] {type Id = K2}) extends Total[V] {
+private[total] case class TotalWithout[+V, K1 <: Id2[_, _, _], K2 <: Id2[_, _, _], C1 <: Id2[_, _, _], C2 <: Id2[_, _, _]](t1: Total[V] {type Id = K1; type Comp = C1}, t2: Total[V] {type Id = K2; type Comp = C2}) extends Total[V] {
   type Id = Id2[Nothing, K1, K2]
   type Comp = Id2[Unit, t1.Comp, t2.Comp]
   val size = t1.size + t2.size
@@ -364,45 +378,45 @@ private[total] case class TotalWithout[+V, K1 <: Id2[_, _, _], K2 <: Id2[_, _, _
   def map[V2](f: V => V2) = {
     val t1a = t1.map(f)
     val t2a = t2.map(f)
-    TotalWithout[V2, t1a.Id, t2a.Id](t1a, t2a)
+    TotalWithout[V2, t1a.Id, t2a.Id, t1a.Comp, t2a.Comp](t1a, t2a)
   }
   def update[V2 >: V](k: Id, f: V2 => V2) = {
-    k.fold[Total[V2] {type Id = TotalWithout.this.Id}](
+    k.fold[Map[V2]](
       (n: Nothing) => n,
       k1 => {
         val t1a = t1.update(k1, f)
-        TotalWithout[V2, t1a.Id, t2.Id](t1a, t2)},
+        TotalWithout[V2, t1a.Id, t2.Id, t1a.Comp, t2.Comp](t1a, t2)},
       k2 => {
         val t2a = t2.update(k2, f)
-        TotalWithout[V2, t1.Id, t2a.Id](t1, t2a)})
+        TotalWithout[V2, t1.Id, t2a.Id, t1.Comp, t2a.Comp](t1, t2a)})
   }
   def allocate : Comp = Id2.zero
-  def insertAt[V2 >: V](id: Comp, value: V2): TotalSuper[Id, V2] =
-    id.fold[TotalSuper[Id, V2]](_ => TotalWith[V2, t1.Id, t2.Id](value, t1, t2),
-      i1 => {val i=t1.insertAt[V2](i1, value); TotalWithout[V2, i.Id, t2.Id](i, t2)},
-      i2 => {val i=t2.insertAt[V2](i2, value); TotalWithout[V2, t1.Id, i.Id](t1, i)})
+  def insertAt[V2 >: V](id: Comp, value: V2): Super[V2] =
+    id.fold[Super[V2]](_ => TotalWith[V2, t1.Id, t2.Id, t1.Comp, t2.Comp](value, t1, t2),
+      i1 => {val i=t1.insertAt[V2](i1, value); TotalWithout[V2, i.Id, t2.Id, i.Comp, t2.Comp](i, t2)},
+      i2 => {val i=t2.insertAt[V2](i2, value); TotalWithout[V2, t1.Id, i.Id, t1.Comp, i.Comp](t1, i)})
   def insert[V2 >: V](value: V2) =
     new SingleExtension[Id, V2] {
-      val total = TotalWith[V2, t1.Id, t2.Id](value, t1, t2)
+      val total = TotalWith[V2, t1.Id, t2.Id, t1.Comp, t2.Comp](value, t1, t2)
       val newId : total.Id = Id2.zero
     }
-  def removeInner(removedKey: Id): (TotalSub[Id, V], V) =
-    removedKey.fold[(TotalSub[Id, V], V)]((n: Nothing) => n,
+  def removeInner(removedKey: Id): (Sub[V], V) =
+    removedKey.fold[(Sub[V], V)]((n: Nothing) => n,
       k1 => {
         val (t1a, v) = t1.removeInner(k1)
-        (TotalWithout[V, t1a.Id, t2.Id](t1a, t2), v)
+        (TotalWithout[V, t1a.Id, t2.Id, t1a.Comp, t2.Comp](t1a, t2), v)
       }, k2 => {
         val (t2a, v) = t2.removeInner(k2)
-        (TotalWithout[V, t1.Id, t2a.Id](t1, t2a), v)
+        (TotalWithout[V, t1.Id, t2a.Id, t1.Comp, t2a.Comp](t1, t2a), v)
       })
-  def difference(d: Total[_]) : TotalSub[Id, V] =
+  def difference(d: Total[_]) : Sub[V] =
     if (d.isEmpty) this
     else d match {
       case TotalWith(_, d1, d2) => Total.pair(t1.difference(d1), t2.difference(d2))
       case TotalWithout(d1, d2) => Total.pair(t1.difference(d1), t2.difference(d2))
       case _ => this
     }
-  def partition[A, B](f: V => Either[A, B]) : (TotalSub[Id, A], TotalSub[Id, B]) = {
+  def partition[A, B](f: V => Either[A, B]) : (Sub[A], Sub[B]) = {
     val s1 = t1.partition(f)
     val s2 = t2.partition(f)
     (TotalWithout(s1._1, s2._1), TotalWithout(s1._2, s2._2))
@@ -413,7 +427,7 @@ private[total] case class TotalWithout[+V, K1 <: Id2[_, _, _], K2 <: Id2[_, _, _
 
 object Total {
   val empty = TotalNothing
-  private[total] def pair[V, K1 <: Id2[_, _, _], K2 <: Id2[_, _, _]](t1: Total[V] {type Id = K1}, t2: Total[V] {type Id = K2}) : Total[V] {type Id <: Id2[Nothing, K1, K2]} =
-    if (t1.isEmpty && t2.isEmpty) TotalNothing else TotalWithout[V, t1.Id, t2.Id](t1, t2)
+  private[total] def pair[V, K1 <: Id2[_, _, _], K2 <: Id2[_, _, _], C1 <: Id2[_, _, _], C2 <: Id2[_, _, _]](t1: Total[V] {type Id = K1; type Comp = C1}, t2: Total[V] {type Id = K2; type Comp = C2}) : Total[V] {type Id <: Id2[Nothing, K1, K2]; type Comp >: Id2[Unit, C1, C2] <: Id2[_, _, _]} =
+    if (t1.isEmpty && t2.isEmpty) TotalNothing else TotalWithout[V, t1.Id, t2.Id, t1.Comp, t2.Comp](t1, t2)
 }
 

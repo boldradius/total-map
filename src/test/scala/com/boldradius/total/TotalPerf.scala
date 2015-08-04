@@ -1,6 +1,7 @@
 package com.boldradius.total
 
 import org.scalameter.{Gen, PerformanceTest}
+import collection.breakOut
 
 /**
  * Created by ppremont on 14-12-05.
@@ -13,6 +14,16 @@ class TotalPerf extends PerformanceTest.Quickbenchmark {
     measure method "insert" in {
       using(sizes) in {s =>
         val added = Total.empty.insertAll(0 to s)
+      }
+    }
+    measure method "insertInMap" in {
+      using(sizes) in {s =>
+        val added = (0 to s).zipWithIndex.map(_.swap).toMap
+      }
+    }
+    measure method "insertInMapBreakout" in {
+      using(sizes) in {s =>
+        val added : Map[Int, Int] = (0 to s).zipWithIndex.map(_.swap)(breakOut)
       }
     }
     val toSplit = Total.empty.insertAll(0 to 100000).total
@@ -31,4 +42,17 @@ class TotalPerf extends PerformanceTest.Quickbenchmark {
     }
     System.out.println(toDiff1.difference(toDiff2).size)
   }
+
+
+  trait SyncedTotals[V] {
+    val t1 : Total[V]
+    val t2 : t1.Map[V]
+    /*def insert(v: V) = new SyncedTotals[V] {
+      val i = SyncedTotals.this.t1.allocate
+      val t1 = SyncedTotals.this.t1.insertAt(i, v)
+      val t2 = SyncedTotals.this.t2.insertAt(i, v)
+    }*/
+  }
+  val s1 = new SyncedTotals[Int] { val t1 = TotalNothing; val t2 = TotalNothing }
+  //s1.insert(10)
 }

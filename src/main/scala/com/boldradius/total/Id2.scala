@@ -15,43 +15,17 @@
 */
 package com.boldradius.total
 
-/*
-trait TrueOrFalse {
-  type Inst
-}
+/**
+ * We would like to create a type Comp[-T < : Id2] which produces the complement
+ * of type T, a type inhabited by all Id2 instances not in T. This does not appear possible,
+ * even if the universe was made up of two types (instead of Id2).
+ * Defining it in terms of a type member (T#C) seems necessary, but we want the T's to be
+ * related by subtyping, and we cannot define C concretely both in base classes and subclasses.
+ *
+ * There are additional complications with infinite universes such as Id2.
+ */
 
-case class True() extends TrueOrFalse {
-  type Not = False
-  type If[A, B] = A
-  type Inst = TrueOrFalse
-}
-case class False(n: Nothing) extends TrueOrFalse{
-  type Not = True
-  type If[A, B] = B
-  type Inst = False
-}
-object Bools {
-  type IsTrue[A <: TrueOrFalse] = A <: A#Inst         // T for some T <: A#Inst
-  val a : IsTrue[True] = implicitly
-  val b : IsTrue[False] = implicitly
-  val c : IsTrue[True] = (??? : IsTrue[False])
-}
-
-case class One() extends ZeroOne[Unit] {
-  type Complement = Zero
-}
-class Zero extends ZeroOne[Nothing] with One {
-  type Complement = One
-}
-*/
- /*
-sealed trait AnyId extends Any {
-//  type Complement
-  def v: Long
-  def ofId2 : Id2[_ <: Unit, _ <: AnyId, _ <: AnyId]
-}*/
 class Id2[+U <: Unit, +A1, +A2] private (val v: Long) extends AnyVal {
-//  type Complement =  Id2[U, A1#Complement, A2#Complement]
   def in1 = Id2.in1(this)
   def in2 = Id2.in2(this)
   def fold[Z](e: U => Z, a1: A1 => Z, a2: A2 => Z) : Z =

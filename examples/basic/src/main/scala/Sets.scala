@@ -2,24 +2,28 @@ import com.boldradius.total._
 
 trait Sets {
   val set : Total[Unit]
-  val subset : TotalSub[set.Id, Unit] // Implements a primary key which is also a foreign key
-  val superset : TotalSuper[set.Id, Unit]
-  val sameSet : TotalMap[set.Id, Unit]
+  val subset : set.Sub[Unit] // Implements a primary key which is also a foreign key
+  val superset : set.Super[Unit]
+  val sameSet : set.Map[Unit]
   //val disjointSet : TotalSub[set.Comp, Unit]
 }
 
 object Sets {
-  def apply(s: Total[Unit])(sub: TotalSub[s.Id, Unit], sup: TotalSuper[s.Id, Unit], same: TotalMap[s.Id, Unit]) = new Sets {
+  def apply(s: Total[Unit])(sub: s.Sub[Unit], sup: s.Super[Unit], same: s.Map[Unit]) = new Sets {
     val set : s.type = s
-    val subset : TotalSub[set.Id, Unit] = sub
-    val superset : TotalSuper[set.Id, Unit] = sup
-    val sameSet : TotalMap[set.Id, Unit] = same
+    val subset : set.Sub[Unit] = sub
+    val superset : set.Super[Unit] = sup
+    val sameSet : set.Map[Unit] = same
   }
 
-  /*
   def insert(s : Sets) : Sets = {
-    val i = s.set.insert(())
-    i.newId  // We want to be able to non-destructively insert that into subset (or sameSet)
+    val id = s.set.allocate
+    val s1 : s.set.Super[Unit] = s.set.insertAt(id, ())
+    //Sets(s1)(???, ???, ???)
+    Sets(s1)(???, ???, s.sameSet.insertAt(id, ()))
+    //Sets(s1)(s.subset.insertAt(id, ()), ???, s.sameSet.insertAt(id, ()))
+    // We want to be able to non-destructively insert that into subset (or sameSet)
+
     // We need to know that it is not already in subset.
     // We could record that was in the complement of s.set
     // Could we deduce with types that it is then also in the complement of s.subset, and can therefore be inserted non-desructively ?
@@ -31,5 +35,4 @@ object Sets {
     // The reverse applies to removal
     // After we've inserted to constrained totals, are they still constrained ? Or, at least, can be do so in a way that keeps them constrained ?
   }
-  */
 }
