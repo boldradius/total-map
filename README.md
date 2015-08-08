@@ -1,18 +1,15 @@
-#total-map 0.2.1
+#total-map 0.2.3
 ===========
 
 Library providing `Total`, a map-like data structure that assigns a value to every possible key.
-It can be seen as a memoized function, but
-it is designed to be updated as a data structure.
+It can be seen as a memoized function, but it is designed to be updated as a data structure.
 
 Insertion and deletion will add or remove keys, and must therefore produce total maps that have different key types.
-The key type is therefore a type member of `Total` named `Key`.
+The key type is therefore a type member of `Total` named `Id`.
 
 Evolving the key types allows an application to **statically enforce referential integrity** between data structures:
 every reference from one into the other is valid, there are no dangling references. This can prevent error conditions
-such as 'post not found' or 'user not found'. The types themselves grow or shrink appropriately during the execution the application, 
-forcing data structures indexed on these identifier types to be updated. Using `Total` allows an application to shift the burden of proof towards
-the functions that update maps and away from functions that access them.
+such as 'post not found' or 'user not found'. The types themselves grow or shrink appropriately during the execution the application, forcing data structures indexed on these identifier types to be updated. Using `Total` allows an application to shift the burden of proof towards the functions that update maps and away from functions that access them.
 
 ## Example:
 
@@ -30,9 +27,9 @@ If we want to prevent that, we can instead use a `Total` map.
 Now the solution would look like this:
 
     val total : Total[User] = ???
-    val id : total.Key = ???
+    val id : total.Id = ???
 
-Now we are guaranteed that the id, of type `total.Key`, has a corresponding `User` in `total`.
+Now we are guaranteed that the id, of type `total.Id`, has a corresponding `User` in `total`.
 
 This way we can have data structures that enforce referential integrity. 
 We can safely represent relations over dynamic sets.
@@ -44,7 +41,7 @@ Add a resolver and the library dependency to your sbt project (this resolver typ
 
     resolvers += Resolver.bintrayRepo("boldradiussolutions", "maven")
 
-    libraryDependencies += "com.boldradius" %% "total-map" % "0.2.1"
+    libraryDependencies += "com.boldradius" %% "total-map" % "0.2.3"
 
 Then import the package. You will be able to reference the `Total` type, and its empty instance:
 
