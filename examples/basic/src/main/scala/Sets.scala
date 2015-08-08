@@ -19,8 +19,8 @@ object Sets {
   def insert(s : Sets) : Sets = {
     val id = s.set.allocate
     val s1 : s.set.Super[Unit] = s.set.insertAt(id, ())
-    //Sets(s1)(???, ???, ???)
-    Sets(s1)(???, ???, s.sameSet.insertAt(id, ()))
+    Sets(s1)(???, ???, ???)
+    //Sets(s1)(???, ???, s.sameSet.insertAt(id, ()))
     //Sets(s1)(s.subset.insertAt(id, ()), ???, s.sameSet.insertAt(id, ()))
     // We want to be able to non-destructively insert that into subset (or sameSet)
 
