@@ -2,7 +2,16 @@
 ===========
 
 Library providing `Total`, a map-like data structure that assigns a value to every possible key.
-It can be seen as a memoized function, but it is designed to be updated as a data structure.
+
+## The paper
+
+A short paper was presented at Scala Symposium 2015: Referential Integrity with Scala Types
+
+A link to a free copy is available from the conference page: http://lampwww.epfl.ch/~hmiller/scala2015/
+
+## Introduction
+
+The `Total` type can be seen as a memoized function, but it is designed to be updated as a data structure.
 
 Insertion and deletion will add or remove keys, and must therefore produce total maps that have different key types.
 The key type is therefore a type member of `Total` named `Id`.
