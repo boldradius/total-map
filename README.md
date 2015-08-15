@@ -3,11 +3,14 @@
 
 Library providing `Total`, a map-like data structure that assigns a value to every possible key.
 
-## The paper
+## Publications
 
-A short paper was presented at Scala Symposium 2015: Referential Integrity with Scala Types
+Scala Symposium 2015 paper: Referential Integrity with Scala Types
 
-A link to a free copy is available from the conference page: http://lampwww.epfl.ch/~hmiller/scala2015/
++ A link to a free copy is available from the conference page: http://lampwww.epfl.ch/~hmiller/scala2015/
+
+Scala by the Bay 2015 presentation slides : http://www.slideshare.net/Tindr/towards-reliable-lookups-scala-by-the-bay
+
 
 ## Introduction
 
